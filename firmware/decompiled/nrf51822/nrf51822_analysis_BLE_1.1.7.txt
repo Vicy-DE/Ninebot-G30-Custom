@@ -1,0 +1,569 @@
+
+========================================================================
+  nRF51822 FIRMWARE ANALYSIS: BLE_1.1.7.bin
+========================================================================
+
+  File: BLE-Dashboard/firmware/BLE_1.1.7.bin
+  Size: 34252 bytes (33.4 KB)
+  Target: nRF51822-QFAA (ARM Cortex-M0, 256KB Flash, 16KB SRAM)
+  Base address: 0x00018000 (post-SoftDevice S110)
+  End address:  0x000205CC
+  MD5:    6bc084786b5dc0dab599e74ca2035897
+  SHA256: dd2b70c81ddd4c84488f3bddaa402daca6c49a9cf28149a9448673efb56390d3
+
+  SoftDevice: S110 v8.0 (96 KB, ends at 0x00018000)
+  Free flash: 113204 bytes (110.6 KB) before bootloader area
+
+========================================================================
+  VECTOR TABLE (Cortex-M0)
+========================================================================
+
+  Initial SP: 0x20003DE8  (SRAM top - 536 bytes for stack, 15848 bytes used)
+
+  [ 1] Reset         : 0x00018155  (APP)
+  [ 2] NMI           : 0x0001816F  (APP)
+  [ 3] HardFault     : 0x00018171  (APP)
+  [11] SVCall        : 0x00018173  (APP)
+  [14] PendSV        : 0x00018175  (APP)
+  [15] SysTick       : 0x00018177  (APP)
+
+  --- Peripheral IRQ Handlers ---
+  [16] IRQ 0 POWER_CLOCK     : 0x00018179  (APP)
+  [17] IRQ 1 RADIO           : 0x00018179  (APP)
+  [18] IRQ 2 UART0           : 0x00019E71  (APP)
+  [19] IRQ 3 SPI0_TWI0       : 0x00018179  (APP)
+  [20] IRQ 4 SPI1_TWI1       : 0x00018179  (APP)
+  [22] IRQ 6 GPIOTE          : 0x00018CE9  (APP)
+  [23] IRQ 7 ADC             : 0x00018179  (APP)
+  [24] IRQ 8 TIMER0          : 0x00018179  (APP)
+  [25] IRQ 9 TIMER1          : 0x00019D1D  (APP)
+  [26] IRQ10 TIMER2          : 0x00018179  (APP)
+  [27] IRQ11 RTC0            : 0x00018179  (APP)
+  [28] IRQ12 TEMP            : 0x00018179  (APP)
+  [29] IRQ13 RNG             : 0x00018179  (APP)
+  [30] IRQ14 ECB             : 0x00018179  (APP)
+  [31] IRQ15 CCM_AAR         : 0x00018179  (APP)
+  [32] IRQ16 WDT             : 0x0001A1B5  (APP)
+  [33] IRQ17 RTC1            : 0x00019C3D  (APP)
+  [34] IRQ18 QDEC            : 0x00018179  (APP)
+  [35] IRQ19 LPCOMP          : 0x00018179  (APP)
+  [36] IRQ20 SWI0            : 0x00019C5D  (APP)
+  [37] IRQ21 SWI1            : 0x00018179  (APP)
+  [38] IRQ22 SWI2            : 0x00019CB1  (APP)
+  [39] IRQ23 SWI3            : 0x00018179  (APP)
+  [40] IRQ24 SWI4            : 0x00018179  (APP)
+  [41] IRQ25 SWI5            : 0x00018179  (APP)
+
+  Active interrupt handlers: 31
+
+========================================================================
+  STRING EXTRACTION
+========================================================================
+
+  Total strings found: 554
+  Important strings: 42
+
+  --- Key Strings (firmware update / BLE / MiIO related) ---
+
+  0x0001ADC8: "[E]: flash operation error, opcode:%d"
+  0x0001ADF0: "psm callback"
+  0x0001AE03: " [D]: update succ. len = %d"
+  0x0001AE24: "[D]: load succ, len = %d"
+  0x0001AE40: "[D]: store succ. len = %d"
+  0x0001AE5C: "[D]: clear succ. len = %d"
+  0x0001B297: " [E]: Mi Serivce Init fail, error code=%d"
+  0x0001B300: "Scooter_G30_SAT"
+  0x0001C3AC: "NBScooter0001"
+  0x0001C8ED: "s_"BsN""
+  0x0001E28F: " [W]: flash write func not setting"
+  0x0001E2B7: " psm retrive succ, "
+  0x0001E2DB: " retrive token, %02x %02x"
+  0x0001E2F8: "[E]: flash read error"
+  0x0001E36B: " [W]: flash write func not setting"
+  0x0001E39F: " flash write succ"
+  0x0001E3B4: "[E]: flash write fail"
+  0x0001E55F: " decrypted auth, %x"
+  0x0001E57C: "cloud bind succ"
+  0x0001E597: " mi_service, bond succ"
+  0x0001E5B4: "cloud bind fail"
+  0x0001E5D7: " Register succ,new token, encrypt sn, beaconkey."
+  0x0001E667: " [E]: SN timeout, clear token"
+  0x0001E688: "[W]: Weak SN timeout."
+  0x0001E83B: " mi_service, waiting SN"
+  0x0001E858: "WEAK dev bind succ"
+  0x0001E893: " app bond fail"
+  0x0001E8A4: "app bond succ"
+  0x0001E9E3: " login cfm handler, token: %02x %02x"
+  0x0001EA13: " decrypted %x"
+  0x0001EA28: "login cfm succ"
+  0x0001EA4B: " login cfm fail"
+  0x0001EBFB: " sn: "
+  0x0001EC68: "Enter state machine"
+  0x0001F35F: " On Connected"
+  0x0001F404: "On Token Written, "
+  0x0001F41F: " On Auth Written, "
+  0x0001F437: " SN Arrived"
+  0x0001FD5F: " [E]: miio ble flash register fail"
+  0x0001FD90: "[D]: miio ble flash register succ"
+  0x00020454: "N3M-Ninebot-Mini0001"
+  0x00020544: "Register succ,new token, encrypt sn, beaconkey. new token:%02x %02x"
+
+========================================================================
+  FUNCTION IDENTIFICATION
+========================================================================
+
+  Functions with PUSH {lr} prologue: 206
+  Unique BL/BLX call targets: 232
+  Total identified functions: 282
+
+  --- Most Called Functions (top 20) ---
+
+  0x000181E0 (APP       ) called  77 times  sub_000181E0
+  0x0001A1FC (APP       ) called  35 times  sub_0001A1FC
+  0x00018212 (APP       ) called  26 times  sub_00018212
+  0x0001818C (APP       ) called  22 times  sub_0001818C
+  0x0001F26C (APP       ) called  20 times  sub_0001F26C
+  0x0001E8B4 (APP       ) called  16 times  sub_0001E8B4
+  0x00018242 (APP       ) called  16 times  sub_00018242
+  0x0001F28C (APP       ) called  15 times  sub_0001F28C
+  0x0001C688 (APP       ) called  12 times  sub_0001C688
+  0x0001AD28 (APP       ) called  11 times  sub_0001AD28
+  0x0001F27C (APP       ) called   9 times  sub_0001F27C
+  0x0001A998 (APP       ) called   9 times  sub_0001A998
+  0x00018228 (APP       ) called   9 times  sub_00018228
+  0x0001EB5C (APP       ) called   9 times  sub_0001EB5C
+  0x0001A6C8 (APP       ) called   8 times  sub_0001A6C8
+  0x0001F29C (APP       ) called   8 times  sub_0001F29C
+  0x000180F4 (APP       ) called   8 times  sub_000180F4
+  0x0001A1DC (APP       ) called   8 times  sub_0001A1DC
+  0x00018588 (APP       ) called   7 times  sub_00018588
+  0x0001B4B4 (APP       ) called   6 times  sub_0001B4B4
+
+========================================================================
+  FIRMWARE UPDATE MECHANISM ANALYSIS
+========================================================================
+
+  --- NVMC (Flash Controller) Access ---
+
+  No direct NVMC register references found in literal pool.
+
+  This suggests flash operations are done via SoftDevice SVC calls
+  (sd_flash_page_erase, sd_flash_write) rather than direct register access.
+
+  --- SoftDevice Flash SVC Calls ---
+
+  0x0001B376: SVC #99 (0x63) — sd_softdevice/flash operation
+  0x0001C5C8: SVC #97 (0x61) — sd_softdevice/flash operation
+  0x0001C896: SVC #96 (0x60) — sd_softdevice/flash operation
+  0x0001C8A8: SVC #104 (0x68) — sd_softdevice/flash operation
+  0x00020376: SVC #101 (0x65) — sd_softdevice/flash operation
+  0x000203C4: SVC #101 (0x65) — sd_softdevice/flash operation
+
+  --- Flash-Related Strings ---
+
+  0x0001ADC8: "[E]: flash operation error, opcode:%d"
+  0x0001E28F: " [W]: flash write func not setting"
+  0x0001E2F8: "[E]: flash read error"
+  0x0001E36B: " [W]: flash write func not setting"
+  0x0001E39F: " flash write succ"
+  0x0001E3B4: "[E]: flash write fail"
+  0x0001FD5F: " [E]: miio ble flash register fail"
+  0x0001FD90: "[D]: miio ble flash register succ"
+
+========================================================================
+  XIAOMI MiIO BLE PROTOCOL ANALYSIS
+========================================================================
+
+  Found 19 MiIO-related strings:
+
+  0x0001B297: " [E]: Mi Serivce Init fail, error code=%d"
+  0x0001E2DB: " retrive token, %02x %02x"
+  0x0001E55F: " decrypted auth, %x"
+  0x0001E57C: "cloud bind succ"
+  0x0001E597: " mi_service, bond succ"
+  0x0001E5B4: "cloud bind fail"
+  0x0001E5D7: " Register succ,new token, encrypt sn, beaconkey."
+  0x0001E667: " [E]: SN timeout, clear token"
+  0x0001E83B: " mi_service, waiting SN"
+  0x0001E893: " app bond fail"
+  0x0001E8A4: "app bond succ"
+  0x0001E9E3: " login cfm handler, token: %02x %02x"
+  0x0001EA28: "login cfm succ"
+  0x0001EA4B: " login cfm fail"
+  0x0001F404: "On Token Written, "
+  0x0001F41F: " On Auth Written, "
+  0x0001FD5F: " [E]: miio ble flash register fail"
+  0x0001FD90: "[D]: miio ble flash register succ"
+  0x00020544: "Register succ,new token, encrypt sn, beaconkey. new token:%02x %02x"
+
+  --- MiIO Authentication Flow (from strings) ---
+
+  1. Mi Service Init → "[E]: Mi Serivce Init fail"
+  2. Auth Write → "On Auth Written" → "decrypted auth"
+  3. Token Write → "On Token Written"
+  4. Cloud Bind → "cloud bind succ/fail"
+  5. App Bond → "app bond succ/fail" → "mi_service, bond succ"
+  6. Login → "login cfm handler" → "login cfm succ/fail"
+  7. SN Exchange → "SN Arrived" → "sn: %02x"
+  8. Register → "Register succ, new token, encrypt sn, beaconkey"
+  9. Flash Register → "miio ble flash register succ/fail"
+
+  --- MiIO Flash Registration ---
+
+  The 'miio ble flash register' mechanism is Xiaomi's proprietary
+  BLE OTA framework. Once the device is authenticated and registered
+  with the MiIO cloud, flash operations can be performed over BLE.
+  This is the PRIMARY update path for the nRF51822 firmware.
+
+========================================================================
+  FLASH OPERATIONS ANALYSIS
+========================================================================
+
+  Found 14 flash/storage operation strings:
+
+  0x0001ADC8: "[E]: flash operation error, opcode:%d"
+  0x0001ADF0: "psm callback"
+  0x0001AE03: " [D]: update succ. len = %d"
+  0x0001AE24: "[D]: load succ, len = %d"
+  0x0001AE40: "[D]: store succ. len = %d"
+  0x0001AE5C: "[D]: clear succ. len = %d"
+  0x0001E28F: " [W]: flash write func not setting"
+  0x0001E2B7: " psm retrive succ, "
+  0x0001E2F8: "[E]: flash read error"
+  0x0001E36B: " [W]: flash write func not setting"
+  0x0001E39F: " flash write succ"
+  0x0001E3B4: "[E]: flash write fail"
+  0x0001FD5F: " [E]: miio ble flash register fail"
+  0x0001FD90: "[D]: miio ble flash register succ"
+
+  --- Persistent Storage Manager (PSM) ---
+
+  The firmware uses Nordic SDK's Persistent Storage Manager for
+  non-volatile storage of BLE bonds, tokens, and configuration.
+  PSM operations: load, store, clear, update
+  These use SoftDevice's sd_flash_write/sd_flash_page_erase SVCs.
+
+  --- Flash Operation Flow ---
+
+  1. Check flash write function: "flash write func not setting"
+  2. Perform write: "flash write succ" / "flash write fail"
+  3. Read back: "flash read error" (on failure)
+  4. PSM callback: "psm callback" (async notification)
+  5. Update result: "update succ. len = %d"
+
+========================================================================
+  SOFTDEVICE SVC CALL ANALYSIS
+========================================================================
+
+  Total SVC calls: 58
+
+  Unknown (0x51): 1 calls
+    0x0001C59E: SVC #81 (0x51)
+
+  sd_ble_gap_*: 18 calls
+    0x0001A75E: SVC #121 (0x79)
+    0x0001A8D4: SVC #115 (0x73)
+    0x0001A8DA: SVC #116 (0x74)
+    0x0001B04A: SVC #114 (0x72)
+    0x0001B076: SVC #122 (0x7a)
+    ... and 13 more
+
+  sd_ble_gattc_*: 1 calls
+    0x0001BDE0: SVC #130 (0x82)
+
+  sd_ble_l2cap_*: 14 calls
+    0x0001AED6: SVC #160 (0xa0)
+    0x0001B38C: SVC #160 (0xa0)
+    0x0001B45E: SVC #166 (0xa6)
+    0x0001B626: SVC #162 (0xa2)
+    0x0001C41E: SVC #169 (0xa9)
+    ... and 9 more
+
+  sd_nvic_*: 1 calls
+    0x0001FE4E: SVC #16 (0x10)
+
+  sd_power_*: 6 calls
+    0x000197CC: SVC #57 (0x39)
+    0x000197E0: SVC #58 (0x3a)
+    0x0001AABC: SVC #54 (0x36)
+    0x0001AAF4: SVC #55 (0x37)
+    0x0001F1A6: SVC #54 (0x36)
+    ... and 1 more
+
+  sd_ppi_*: 10 calls
+    0x0001B69E: SVC #41 (0x29)
+    0x0001B6A6: SVC #41 (0x29)
+    0x0001B704: SVC #40 (0x28)
+    0x0001FE58: SVC #46 (0x2e)
+    0x0001FEF4: SVC #41 (0x29)
+    ... and 5 more
+
+  sd_softdevice_*: 6 calls
+    0x0001B376: SVC #99 (0x63)
+    0x0001C5C8: SVC #97 (0x61)
+    0x0001C896: SVC #96 (0x60)
+    0x0001C8A8: SVC #104 (0x68)
+    0x00020376: SVC #101 (0x65)
+    ... and 1 more
+
+  sd_timeslot_*: 1 calls
+    0x0001A9B6: SVC #77 (0x4d)
+
+========================================================================
+  UART CONFIGURATION ANALYSIS
+========================================================================
+
+  Found 11 UART register references:
+
+  0x00019F10: references ENABLE (0x40002500)
+  0x00019F1E: references EVENTS_CTS (0x40002100)
+  0x00019FB6: references EVENTS_CTS (0x40002100)
+  0x0001A0FA: references INTEN (0x40002300)
+  0x0001A100: references EVENTS_CTS (0x40002100)
+  0x0001FDC8: references ENABLE (0x40002500)
+  0x0001FDD4: references TASKS_STARTRX (0x40002000)
+  0x0001FDDC: references EVENTS_CTS (0x40002100)
+  0x0001FDF8: references EVENTS_CTS (0x40002100)
+  0x0001FE04: references ENABLE (0x40002500)
+  0x00020202: references INTEN (0x40002300)
+
+========================================================================
+  DFU / BOOTLOADER REFERENCE ANALYSIS
+========================================================================
+
+  No direct bootloader address references found in literal pool.
+
+
+  --- UICR References ---
+
+  0x00018BA2: references UICR.CLENR0 (Code region 0 length)
+  0x0001F598: references UICR.CLENR0 (Code region 0 length)
+  0x0001F7B2: references UICR.CLENR0 (Code region 0 length)
+  0x0001FECA: references UICR.CLENR0 (Code region 0 length)
+  0x0001FF24: references UICR.CLENR0 (Code region 0 length)
+  0x0001FF64: references UICR.CLENR0 (Code region 0 length)
+  0x0001FFC2: references UICR.CLENR0 (Code region 0 length)
+
+  --- Binary Pattern Scan ---
+
+  No bootloader address patterns found in binary.
+
+========================================================================
+  DISASSEMBLY — KEY REGIONS
+========================================================================
+
+
+  --- Reset Handler @ 0x00018155 ---
+
+    0x00018155: 0921       lsrs     r1, r4, #4  ; IRQ_Reset
+    0x00018157: 0248       lsls     r0, r1, #9
+    0x00018159: 0A68       lsrs     r0, r5, #9
+    0x0001815B: 0243       lsls     r3, r0, #9
+    0x0001815D: 0860       lsrs     r0, r4, #1
+    0x0001815F: 0248       lsls     r0, r1, #9
+    0x00018161: 0A68       lsrs     r0, r5, #9
+    0x00018163: 0243       lsls     r3, r0, #9
+    0x00018165: 0760       lsls     r0, r4, #29
+    0x00018167: 8048       strh     r0, [r1, #0x2]
+    0x00018169: 0747       lsls     r7, r0, #29
+    0x0001816B: 0048       lsls     r0, r1, #1
+    0x0001816D: FE47       .hword   0xFE47
+    0x0001816F: FEE7       .hword   0xFEE7  ; IRQ_NMI
+    0x00018171: FEE7       .hword   0xFEE7  ; IRQ_HardFault
+    0x00018173: FEE7       .hword   0xFEE7  ; IRQ_SVCall
+    0x00018175: FEE7       .hword   0xFEE7  ; IRQ_PendSV
+    0x00018177: FEE7       .hword   0xFEE7  ; IRQ_SysTick
+    0x00018179: 00E7       lsls     r7, r4, #3  ; IRQ_SWI5
+    0x0001817B: 2400       movs     r4, #0x0
+    0x0001817D: 0005       lsls     r5, r0, #0
+    0x0001817F: 5440       strb     r0, [r0, r1]
+    0x00018181: 0005       lsls     r5, r0, #0
+    0x00018183: C940       ldm      r1!, {r6}
+    0x00018185: 019C       lsls     r4, r3, #6
+    0x00018187: C100       stm      r1!, {}
+    0x00018189: 0180       lsls     r0, r0, #6
+    0x0001818B: 3000       adds     r0, #0
+    0x0001818D: 0BB5       lsrs     r5, r6, #14
+    0x0001818F: 0146       lsls     r6, r0, #5
+    0x00018191: 0046       lsls     r6, r0, #1
+    0x00018193: 2020       movs     r0, #0x20
+    0x00018195: 0122       lsls     r2, r4, #4
+    0x00018197: 0924       lsrs     r4, r4, #4
+    0x00018199: 0DE0       lsrs     r0, r4, #23
+    0x0001819B: D546       bpl      #0x1822b
+    0x0001819D: 9D40       ldr      r5, [sp, #0x100]
+    0x0001819F: 0542       lsls     r2, r0, #21
+    0x000181A1: 1DD3       adds     r3, r2, #7
+    0x000181A3: 9546       str      r5, [sp, #0x118]
+    0x000181A5: 4940       ldr      r1, [pc, #0x100]  ; =0x9B01DCDF
+    0x000181A7: 251B       movs     r5, #0x1b
+    0x000181A9: 9546       str      r5, [sp, #0x118]
+    0x000181AB: 4040       eors     r0, r0
+    0x000181AD: 1519       asrs     r1, r3, #20
+    0x000181AF: 5246       strh     r6, [r0, r1]
+    0x000181B1: 001E       lsls     r6, r3, #0
+    0x000181B3: F12D       .hword   0xF12D
+    0x000181B5: 30DC       adds     r0, #220
+    0x000181B7: 70BD       strb     r5, [r7, #0x2]
+    0x000181B9: 00B5       lsls     r5, r6, #2
+    0x000181BB: 2524       movs     r5, #0x24
+    0x000181BD: 0046       lsls     r6, r0, #1
+    0x000181BF: 0128       lsls     r0, r5, #4
+    0x000181C1: 01DA       lsls     r2, r3, #7
+    0x000181C3: 4024       ands     r4, r4
+    0x000181C5: 0042       lsls     r2, r0, #1
+    0x000181C7: 0129       lsls     r1, r5, #4
+    0x000181C9: 01DA       lsls     r2, r3, #7
+    0x000181CB: 4925       ldr      r1, [pc, #0x94]  ; =0x24404605
+    0x000181CD: FF42       .hword   0xFF42
+    0x000181CF: DDF7       ble      #0x181c1
+    0x000181D1: ACFF       add      r4, sp, #1020
+    0x000181D3: 0042       lsls     r2, r0, #1
+    0x000181D5: 40D0       lsrs     r0, r2
+    0x000181D7: 0042       lsls     r2, r0, #1
+    0x000181D9: 002C       lsls     r4, r5, #0
+    0x000181DB: 49D0       ldr      r1, [pc, #0x340]  ; =0xE7EA4819
+    0x000181DD: 7042       strb     r2, [r0, #0x1]
+    0x000181DF: 03BD       lsls     r5, r7, #14
+    0x000181E1: 0B46       lsrs     r6, r0, #13
+    0x000181E3: 9B43       ldr      r3, [sp, #0x10c]
+    0x000181E5: 0307       lsls     r7, r0, #12
+    0x000181E7: 09D0       lsrs     r0, r2, #7
+    0x000181E9: 08E0       lsrs     r0, r4, #3
+    0x000181EB: 12C9       asrs     r1, r1, #11
+    0x000181ED: 081F       lsrs     r7, r3, #32
+    0x000181EF: 04C0       lsls     r0, r0, #19
+    0x000181F1: FA2A       .hword   0xFA2A
+    0x000181F3: 03D2       lsls     r2, r2, #15
+
+  --- NMI Handler @ 0x0001816F ---
+
+    0x0001816F: FEE7       .hword   0xFEE7  ; IRQ_NMI
+    0x00018171: FEE7       .hword   0xFEE7  ; IRQ_HardFault
+    0x00018173: FEE7       .hword   0xFEE7  ; IRQ_SVCall
+    0x00018175: FEE7       .hword   0xFEE7  ; IRQ_PendSV
+    0x00018177: FEE7       .hword   0xFEE7  ; IRQ_SysTick
+    0x00018179: 00E7       lsls     r7, r4, #3  ; IRQ_SWI5
+    0x0001817B: 2400       movs     r4, #0x0
+    0x0001817D: 0005       lsls     r5, r0, #0
+    0x0001817F: 5440       strb     r0, [r0, r1]
+    0x00018181: 0005       lsls     r5, r0, #0
+    0x00018183: C940       ldm      r1!, {r6}
+    0x00018185: 019C       lsls     r4, r3, #6
+    0x00018187: C100       stm      r1!, {}
+    0x00018189: 0180       lsls     r0, r0, #6
+    0x0001818B: 3000       adds     r0, #0
+    0x0001818D: 0BB5       lsrs     r5, r6, #14
+    0x0001818F: 0146       lsls     r6, r0, #5
+    0x00018191: 0046       lsls     r6, r0, #1
+    0x00018193: 2020       movs     r0, #0x20
+    0x00018195: 0122       lsls     r2, r4, #4
+    0x00018197: 0924       lsrs     r4, r4, #4
+    0x00018199: 0DE0       lsrs     r0, r4, #23
+    0x0001819B: D546       bpl      #0x1822b
+    0x0001819D: 9D40       ldr      r5, [sp, #0x100]
+    0x0001819F: 0542       lsls     r2, r0, #21
+    0x000181A1: 1DD3       adds     r3, r2, #7
+    0x000181A3: 9546       str      r5, [sp, #0x118]
+    0x000181A5: 4940       ldr      r1, [pc, #0x100]  ; =0x9B01DCDF
+    0x000181A7: 251B       movs     r5, #0x1b
+    0x000181A9: 9546       str      r5, [sp, #0x118]
+
+  --- HardFault Handler @ 0x00018171 ---
+
+    0x00018171: FEE7       .hword   0xFEE7  ; IRQ_HardFault
+    0x00018173: FEE7       .hword   0xFEE7  ; IRQ_SVCall
+    0x00018175: FEE7       .hword   0xFEE7  ; IRQ_PendSV
+    0x00018177: FEE7       .hword   0xFEE7  ; IRQ_SysTick
+    0x00018179: 00E7       lsls     r7, r4, #3  ; IRQ_SWI5
+    0x0001817B: 2400       movs     r4, #0x0
+    0x0001817D: 0005       lsls     r5, r0, #0
+    0x0001817F: 5440       strb     r0, [r0, r1]
+    0x00018181: 0005       lsls     r5, r0, #0
+    0x00018183: C940       ldm      r1!, {r6}
+    0x00018185: 019C       lsls     r4, r3, #6
+    0x00018187: C100       stm      r1!, {}
+    0x00018189: 0180       lsls     r0, r0, #6
+    0x0001818B: 3000       adds     r0, #0
+    0x0001818D: 0BB5       lsrs     r5, r6, #14
+    0x0001818F: 0146       lsls     r6, r0, #5
+    0x00018191: 0046       lsls     r6, r0, #1
+    0x00018193: 2020       movs     r0, #0x20
+    0x00018195: 0122       lsls     r2, r4, #4
+    0x00018197: 0924       lsrs     r4, r4, #4
+    0x00018199: 0DE0       lsrs     r0, r4, #23
+    0x0001819B: D546       bpl      #0x1822b
+    0x0001819D: 9D40       ldr      r5, [sp, #0x100]
+    0x0001819F: 0542       lsls     r2, r0, #21
+    0x000181A1: 1DD3       adds     r3, r2, #7
+    0x000181A3: 9546       str      r5, [sp, #0x118]
+    0x000181A5: 4940       ldr      r1, [pc, #0x100]  ; =0x9B01DCDF
+    0x000181A7: 251B       movs     r5, #0x1b
+    0x000181A9: 9546       str      r5, [sp, #0x118]
+    0x000181AB: 4040       eors     r0, r0
+
+  --- SVCall Handler @ 0x00018173 ---
+
+    0x00018173: FEE7       .hword   0xFEE7  ; IRQ_SVCall
+    0x00018175: FEE7       .hword   0xFEE7  ; IRQ_PendSV
+    0x00018177: FEE7       .hword   0xFEE7  ; IRQ_SysTick
+    0x00018179: 00E7       lsls     r7, r4, #3  ; IRQ_SWI5
+    0x0001817B: 2400       movs     r4, #0x0
+    0x0001817D: 0005       lsls     r5, r0, #0
+    0x0001817F: 5440       strb     r0, [r0, r1]
+    0x00018181: 0005       lsls     r5, r0, #0
+    0x00018183: C940       ldm      r1!, {r6}
+    0x00018185: 019C       lsls     r4, r3, #6
+    0x00018187: C100       stm      r1!, {}
+    0x00018189: 0180       lsls     r0, r0, #6
+    0x0001818B: 3000       adds     r0, #0
+    0x0001818D: 0BB5       lsrs     r5, r6, #14
+    0x0001818F: 0146       lsls     r6, r0, #5
+    0x00018191: 0046       lsls     r6, r0, #1
+    0x00018193: 2020       movs     r0, #0x20
+    0x00018195: 0122       lsls     r2, r4, #4
+    0x00018197: 0924       lsrs     r4, r4, #4
+    0x00018199: 0DE0       lsrs     r0, r4, #23
+    0x0001819B: D546       bpl      #0x1822b
+    0x0001819D: 9D40       ldr      r5, [sp, #0x100]
+    0x0001819F: 0542       lsls     r2, r0, #21
+    0x000181A1: 1DD3       adds     r3, r2, #7
+    0x000181A3: 9546       str      r5, [sp, #0x118]
+    0x000181A5: 4940       ldr      r1, [pc, #0x100]  ; =0x9B01DCDF
+    0x000181A7: 251B       movs     r5, #0x1b
+    0x000181A9: 9546       str      r5, [sp, #0x118]
+    0x000181AB: 4040       eors     r0, r0
+    0x000181AD: 1519       asrs     r1, r3, #20
+
+  --- SysTick Handler @ 0x00018177 ---
+
+    0x00018177: FEE7       .hword   0xFEE7  ; IRQ_SysTick
+    0x00018179: 00E7       lsls     r7, r4, #3  ; IRQ_SWI5
+    0x0001817B: 2400       movs     r4, #0x0
+    0x0001817D: 0005       lsls     r5, r0, #0
+    0x0001817F: 5440       strb     r0, [r0, r1]
+    0x00018181: 0005       lsls     r5, r0, #0
+    0x00018183: C940       ldm      r1!, {r6}
+    0x00018185: 019C       lsls     r4, r3, #6
+    0x00018187: C100       stm      r1!, {}
+    0x00018189: 0180       lsls     r0, r0, #6
+    0x0001818B: 3000       adds     r0, #0
+    0x0001818D: 0BB5       lsrs     r5, r6, #14
+    0x0001818F: 0146       lsls     r6, r0, #5
+    0x00018191: 0046       lsls     r6, r0, #1
+    0x00018193: 2020       movs     r0, #0x20
+    0x00018195: 0122       lsls     r2, r4, #4
+    0x00018197: 0924       lsrs     r4, r4, #4
+    0x00018199: 0DE0       lsrs     r0, r4, #23
+    0x0001819B: D546       bpl      #0x1822b
+    0x0001819D: 9D40       ldr      r5, [sp, #0x100]
+    0x0001819F: 0542       lsls     r2, r0, #21
+    0x000181A1: 1DD3       adds     r3, r2, #7
+    0x000181A3: 9546       str      r5, [sp, #0x118]
+    0x000181A5: 4940       ldr      r1, [pc, #0x100]  ; =0x9B01DCDF
+    0x000181A7: 251B       movs     r5, #0x1b
+    0x000181A9: 9546       str      r5, [sp, #0x118]
+    0x000181AB: 4040       eors     r0, r0
+    0x000181AD: 1519       asrs     r1, r3, #20
+    0x000181AF: 5246       strh     r6, [r0, r1]
+    0x000181B1: 001E       lsls     r6, r3, #0

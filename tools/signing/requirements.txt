@@ -1,0 +1,7 @@
+# Python dependencies for custom-bootloader signing tools
+#
+# Install with:
+#   pip install -r requirements.txt
+
+cryptography>=41.0.0
+pyserial>=3.5

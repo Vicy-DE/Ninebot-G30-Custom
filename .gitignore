@@ -1,0 +1,74 @@
+# OS
+Thumbs.db
+.DS_Store
+
+# Visual Studio / VS Code
+.vs/
+.vscode/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Python
+.venv/
+venv/
+ENV/
+env/
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+pip-wheel-metadata/
+build/
+dist/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# CMake / build system
+/build/
+/bootloader/build/
+/firmware/build/
+/firmware-decompiled/build/
+/firmware-rebuild/build/
+CMakeCache.txt
+/CMakeFiles/
+cmake_install.cmake
+compile_commands.json
+Makefile.user
+*.ninja
+
+# Compiler output
+*.o
+*.obj
+*.elf
+*.bin
+*.hex
+*.map
+*.lst
+*.srec
+*.axf
+
+# Toolchain / IDE
+.arm-none-eabi*
+
+# Logs
+*.log
+
+# Signing keys and secrets
+tools/signing/*.pem
+tools/signing/*.key
+tools/signing/keys/
+.secrets/
+
+# Flashing / probe artifacts
+openocd.log
+gdbserver.log
+
+# Temporary / OS temp
+*.tmp
+*.temp
+
+# JetBrains
+.idea/

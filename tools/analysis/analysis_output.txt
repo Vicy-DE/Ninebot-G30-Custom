@@ -1,0 +1,3654 @@
+======================================================================
+  Ninebot G30 Max Firmware Disassembler & Protocol Verifier
+  ARM Cortex-M3 (STM32F103) Thumb Mode Analysis
+  Capstone engine: Available
+======================================================================
+
+######################################################################
+######################################################################
+##  FIRMWARE ANALYSIS: DRV_1.2.6
+##  File: C:\Users\Layer\Documents\Ninebot-G30-Custom\ESC-MotorController\firmware\DRV_1.2.6.bin
+######################################################################
+######################################################################
+
+  File size: 30076 bytes (29.4 KB)
+  Base address: 0x08001000
+  End address:  0x0800857C
+  MD5:    3c240127e36ef825311f487227b179dc
+  SHA256: 3da93fb2eabfb6c46bf5d652f9317e186326bf1390967f90949eaab6a4b29c9f
+
+======================================================================
+  VECTOR TABLE ANALYSIS: DRV_1.2.6
+======================================================================
+  [  1] Reset Handler        = 0x08001100 (Thumb)
+  [ 15] SysTick Handler      = 0x08005C54 (Thumb)
+  [ 27] DMA1_Ch1             = 0x0800111A (Thumb)
+  [ 28] DMA1_Ch2             = 0x0800111A (Thumb)
+  [ 29] DMA1_Ch3             = 0x0800111A (Thumb)
+  [ 41] TIM1_UP              = 0x08005E74 (Thumb)
+  [ 43] TIM1_CC              = 0x0800111A (Thumb)
+  [ 47] I2C1_EV              = 0x0800111A (Thumb)
+  [ 49] I2C2_EV              = 0x0800111A (Thumb)
+  [ 53] USART1               = 0x0800111A (Thumb)
+  [ 54] USART2               = 0x0800111A (Thumb)
+  [ 55] USART3               = 0x0800111A (Thumb)
+
+  --- UART Interrupt Handlers ---
+  USART1: 0x0800111A -> active (protocol handler likely here)
+  USART2: 0x0800111A -> active (protocol handler likely here)
+  USART3: 0x0800111A -> active (protocol handler likely here)
+
+======================================================================
+  PROTOCOL HEADER SEARCH (0x5A 0xA5): DRV_1.2.6
+======================================================================
+  Found 0 occurrences of 0x5A 0xA5
+
+======================================================================
+  PROTOCOL CONSTANT SEARCH: DRV_1.2.6
+======================================================================
+  0x5A (Protocol header byte 1 (0x5A)): 23 raw occurrences
+  0xA5 (Protocol header byte 2 (0xA5)): 43 raw occurrences
+  0x20 (ESC address (0x20)): 1076 raw occurrences
+  0x21 (BLE address (0x21)): 405 raw occurrences
+  0x22 (BMS address (0x22)): 196 raw occurrences
+  0x3E (App address (0x3E)): 23 raw occurrences
+  0x3F (PC address (0x3F)): 22 raw occurrences
+
+======================================================================
+  CHECKSUM PATTERN SEARCH (XOR 0xFFFF): DRV_1.2.6
+======================================================================
+  0xFFFF (16-bit LE): 22 occurrences
+    Offset 0x001205 (0x08002205): F0 19 FF FF F7 B9 FB 09
+    Offset 0x001B60 (0x08002B60): 00 00 FF FF 0F 00 00 20
+    Offset 0x001C68 (0x08002C68): 00 00 FF FF 0F 00 23 01
+    Offset 0x001F29 (0x08002F29): F7 11 FF FF F7 E9 FE FF
+    Offset 0x002032 (0x08003032): 30 F8 FF FF 00 2C 01 40
+    Offset 0x00218A (0x0800318A): C3 F5 FF FF 70 B5 00 24
+    Offset 0x0024CC (0x080034CC): 05 00 FF FF 07 00 54 55
+    Offset 0x0024D4 (0x080034D4): 0D 00 FF FF 0F 00 06 48
+    Offset 0x0025E8 (0x080035E8): 55 53 FF FF 0F 00 0D 48
+    Offset 0x002704 (0x08003704): 01 00 FF FF 03 00 AA AA
+  0x0000FFFF (32-bit LE): 1 occurrences
+    Offset 0x0037AE (0x080047AE): C0 63 FF FF 00 00 1E FB
+
+======================================================================
+  STM32 PERIPHERAL REGISTER REFERENCES: DRV_1.2.6
+======================================================================
+
+  --- AFIO ---
+  AFIO_EVCR           :  1 refs at 0x0023CC
+
+  --- FLASH ---
+  FLASH_ACR           :  8 refs at 0x001B64, 0x001B8C, 0x001BA0, 0x001BB0, 0x001BE8 (+3 more)
+
+  --- GPIOA ---
+  GPIOA_CRL           :  8 refs at 0x000700, 0x003574, 0x0039A0, 0x004200, 0x004320 (+3 more)
+
+  --- GPIOB ---
+  GPIOB_CRL           :  7 refs at 0x000704, 0x000974, 0x002828, 0x00343C, 0x0039A4 (+2 more)
+  GPIOB_IDR           :  1 refs at 0x002850
+
+  --- RCC ---
+  RCC_CR              : 10 refs at 0x004334, 0x00434C, 0x004364, 0x00437C, 0x004394 (+5 more)
+
+  --- TIM1 ---
+  TIM1_CR1            : 13 refs at 0x002034, 0x003874, 0x0039A8, 0x00472C, 0x004DE4 (+8 more)
+
+  --- TIM3 ---
+  TIM3_CR1            :  6 refs at 0x00282C, 0x004DEC, 0x004E68, 0x005108, 0x005284 (+1 more)
+
+  --- USART1 ---
+  USART1_DR           :  1 refs at 0x005E68
+  USART1_SR           :  4 refs at 0x005E0C, 0x005F10, 0x0060E4, 0x0061C4
+
+  --- USART2 ---
+  USART2_DR           :  1 refs at 0x005810
+  USART2_SR           :  3 refs at 0x0057B0, 0x0058CC, 0x0060E8
+
+  --- USART3 ---
+  USART3_DR           :  1 refs at 0x005B48
+  USART3_SR           :  3 refs at 0x005AEC, 0x005BEC, 0x0060EC
+
+======================================================================
+  BAUD RATE CONFIGURATION SEARCH: DRV_1.2.6
+======================================================================
+  BRR=0x0271 (115200 baud (USART1 @ 72MHz PCLK2)): 1 at 0x0013CB
+  BRR=0x0138 (115200 baud (USART2/3 @ 36MHz PCLK1, alt)): 8 at 0x000E25, 0x003051, 0x005E0D, 0x005E69, 0x005F11, 0x0060E5, 0x0061C5, 0x006D0C
+  BRR=0x1388 (9600 baud (USART1 @ 72MHz)): 1 at 0x006223
+
+======================================================================
+  STRING EXTRACTION: DRV_1.2.6
+======================================================================
+
+  Total strings found (>=4 chars): 335
+
+  --- All extracted strings ---
+  0x080012BB: "!pG!"
+  0x08001316: "SFZF"
+  0x08001333: "FPFYFBF"
+  0x08001346: " F9F"
+  0x08001355: "v,C7C"
+  0x080013CB: "@pGp"
+  0x08001469: "P,DB"
+  0x080014DE: "iF F"
+  0x080015F5: "CB`pG"
+  0x08001619: "B"CLyC"
+  0x080016BB: "@iF(F"
+  0x080016CA: "iF(F"
+  0x080016D8: "iF(F"
+  0x080016E6: "iF(F"
+  0x08001793: "CDcp"
+  0x08001829: "pBpx""
+  0x08001895: "t }8"
+  0x0800189B: "  u }("
+  0x080018D1: "t%up"
+  0x08001955: "@iF(F"
+  0x080019F1: "IHppG"
+  0x08001A36: " qaxH"
+  0x08001A42: "fp`y"
+  0x08001A49: "(gM y}"
+  0x08001B30: "+p.I"
+  0x08001B82: "2pnu"
+  0x08001BB8: ""!  "
+  0x08001BC2: "*p.u`y"
+  0x08001BCB: " `q&"
+  0x08001BD4: "3GA0016A1A0001"
+  0x08001CA2: "QIQKRHM"
+  0x08001CB0: "OyPLO"
+  0x08001CBF: "<gEl"
+  0x08001CC8: "KJRxKK"
+  0x08001D60: "VCx""
+  0x08001E09: "@$IKy"
+  0x08001E12: "#M/h#N#K"
+  0x08001E35: "`x$&"
+  0x08001EBA: "@lgKhHhOiNiLO"
+  0x08001F93: "p%qe"
+  0x08001FB9: "wd(""
+  0x08002098: "JCSC@h"
+  0x08002171: "nPI@"
+  0x080021E2: "d!hF"
+  0x080021F8: "IBhF"
+  0x0800238A: "3 (y"
+  0x080023B2: "HI&p"
+  0x08002402: "5H"q""
+  0x08002417: "p*rG"
+  0x08002437: "p.r7"
+  0x080024A8: "I`"p"
+  0x0800251F: "q5pup"
+  0x08002568: "`sd("
+  0x0800258C: " sd("
+  0x08002592: "%s'q"
+  0x0800259B: "q5pup"
+  0x080025C2: "px7("
+  0x080025F4: "0x7(0"
+  0x08002671: "t |X"
+  0x0800267A: "1x`|"
+  0x08002688: "HP%tW"
+  0x080026C8: " lcE"
+  0x080026FF: " @F:"
+  0x08002721: "q't0x`t"
+  0x0800278C: "/0KvpG"
+  0x08002868: "000000"
+  0x08002881: "1HqpG"
+  0x080028CB: "`1I1J"
+  0x080028EC: "H`pG(J(2"
+  0x08002900: "$J<2"
+  0x08002910: " JP2"
+  0x080029AF: "E,C"C"
+  0x080029B9: "i"CLj"C"
+  0x08002A0B: "`pGpG"
+  0x08002A39: "`D0(`@8"
+  0x08002A41: "O0`D08`O"
+  0x08002A55: "  `)h"
+  0x08002B39: "L i@"
+  0x08002B40: " aea i@"
+  0x08002B4A: " a0F"
+  0x08002B59: "@!ap"
+  0x08002BC9: "L i@"
+  0x08002C12: " a i@"
+  0x08002C1A: " a0F"
+  0x08002C31: "@"ap"
+  0x08002C39: "@ a i@"
+  0x08002C61: "@!ap"
+  0x08002C83: "IA`pG#"
+  0x08002D60: "$h#D"
+  0x08002D91: "M y!lU"
+  0x08002DB6: " q@("
+  0x08002DBD: "  q l"
+  0x08002DE9: "hHCd!"
+  0x08002E16: "d!HCO"
+  0x08002E60: "aaAbF"
+  0x08002E9F: "LLadB"
+  0x08002EE1: "FUFhF"
+  0x08002FF6: "QF`l"
+  0x0800313B: " `q`y "
+  0x080032AC: "1\aUm"
+  0x080033A8: "pbch#"
+  0x080033AE: "pcc`"
+  0x080033CF: "@AapG"
+  0x080033D5: "apGO"
+  0x0800351E: " a i"
+  0x08003523: "jHC a%i"
+  0x0800353F: "i)IIB"
+  0x08003629: "@US7"
+  0x08003682: "QC!a"
+  0x080036FD: "HpGUU"
+  0x080037B2: "iF F"
+  0x080037DA: "@! F"
+  0x080037F4: "_a F"
+  0x080038AF: "jNOO"
+  0x0800398F: "rLx$"
+  0x080039B7: "bLy,"
+  0x080039D0: "LbLy"
+  0x08003A48: "@F p"
+  0x08003A51: "j!xE"
+  0x08003A58: " k!x"
+  0x08003A6D: " IF#y"
+  0x08003AC0: "!xPCE"
+  0x08003B36: "PC!xE"
+  0x08003B62: " y&O"
+  0x08003BAC: "@F p`k!xE"
+  0x08003C8C: "\Fix"
+  0x08003D02: "BxBEi"
+  0x08003D66: "bH2F)F"
+  0x08003DC1: "h2Fi"
+  0x08003E10: "8i:i"
+  0x08003E1B: "C8aPF"
+  0x08003E9F: ""!!  "
+  0x08003EBE: "^Fix"
+  0x0800404E: "OH$8"
+  0x080040B2: "N`:L x"
+  0x080040D4: " x7("
+  0x080040DC: "F``x"
+  0x080040E4: "`x7("
+  0x080041D3: "!0#&"
+  0x080041F7: "F"!  "
+  0x0800438A: "-N0F"
+  0x080043BC: "iF0F"
+  0x08004423: "")F0F"
+  0x080044C2: "d&NC"
+  0x0800451A: " p x"
+  0x0800468D: "L$hEx"
+  0x08004729: "KCa[B"
+  0x08004745: "HHa@B"
+  0x08004856: "pG ,"
+  0x080048A8: "?N0F"
+  0x080048B4: " @  "
+  0x080048FB: "@iF0F"
+  0x08004904: "iF0F"
+  0x0800490C: "iF0F"
+  0x0800491C: "iF0F"
+  0x080049DD: "FpGIm"
+  0x08004AC2: "*FSH"
+  0x08004AF7: "#>!  "
+  0x08004B26: "!!  "
+  0x08004B2E: "7L x"
+  0x08004B57: ""!!  "
+  0x08004B7C: "Hp&N"
+  0x08004BC0: "BxP#!!  "
+  0x08004BF4: "NBScooter0001"
+  0x08004C7F: "'eM")j"
+  0x08004CF7: "x"x# "
+  0x08004D10: "ax=)"
+  0x08004D68: "/tov"
+  0x08004DD2: ""x" "
+  0x08004E03: "x"x! "
+  0x08004E4E: "!!}}}rrrX*~"
+  0x08004E8E: ""x1D"
+  0x08004F0F: """!  "
+  0x08004F6B: "Fd DF"
+  0x08004F7C: "^FWF"
+  0x08004F8A: "IPQH"
+  0x08004FD8: "`yN(:"
+  0x08004FDF: "y4(7"
+  0x08004FE5: "yG(4"
+  0x08004FFA: "IyQC"
+  0x0800500E: "@B2I"
+  0x0800502C: ",H'I"
+  0x08005061: "xax-"
+  0x08005081: "I xHp^"
+  0x080050A8: "IF F"
+  0x0800522D: "p(x@"
+  0x080052CF: "@iF0F"
+  0x080052E5: "@iF0F"
+  0x080052F2: ")F0F"
+  0x08005307: "@iF0F"
+  0x08005310: ")F0F"
+  0x08005325: "JQh!"
+  0x0800532D: "CQ`pG"
+  0x08005345: "CQapG"
+  0x080053D7: "@B`Kh"
+  0x0800540A: "JhKh"
+  0x0800561F: "+=Pc"
+  0x0800569A: "qFRF"
+  0x080056E6: "YFrF"
+  0x0800575A: "1h*h"
+  0x0800577A: "1h*h"
+  0x08005792: "KCQB"
+  0x0800579C: "1h*h"
+  0x080057AC: "YCZC"
+  0x080057B4: "IBRB"
+  0x08005812: "2L F"
+  0x08005837: "PiF@F"
+  0x08005859: "piF F"
+  0x0800588E: "EF(F"
+  0x08005993: "%*FO"
+  0x080059CA: "VM a"
+  0x08005A8B: "` !0F"
+  0x08005A9C: "`ad/"
+  0x08005AA2: "ahd "
+  0x08005AD0: "IBd)"
+  0x08005AE2: "RBd*"
+  0x08005AF6: "RBd*"
+  0x08005B08: "RBd*"
+  0x08005B73: "L h "
+  0x08005B81: "P `0"
+  0x08005BC1: "u)F0F"
+  0x08005C12: "HpHx"
+  0x08005C19: "1HqpG"
+  0x08005C2A: " pap"
+  0x08005C31: "p%q0"
+  0x08005C42: " pap"
+  0x08005C49: "p%q0"
+  0x08005C69: "!A`Ah"
+  0x08005C81: "`AhA`AhA"
+  0x08005C8B: "aA`AhA`"
+  0x08005C99: "`Ah!"
+  0x08005CA0: "A`AhA"
+  0x08005CC2: "A`AhA"
+  0x08005CCA: "A`Ah"
+  0x08005D0E: "JhKh"
+  0x08005D65: "`Ah!"
+  0x08005E7D: "`!L "
+  0x08005EC3: "rPCO"
+  0x08005ECE: "h`hx"
+  0x08005EDB: "Jih@"
+  0x08006055: "!  5"
+  0x08006161: " pG-"
+  0x08006306: "@s*C""
+  0x08006425: "#3C#"
+  0x08006481: "%5C$"
+  0x0800648D: "44CN"
+  0x0800667E: " a i"
+  0x08006686: "'a(ov"
+  0x080066CF: " `q7O9"
+  0x08006714: "iFXF"
+  0x08006748: "@!8F"
+  0x08006762: "iFXF"
+  0x08006792: "ea x@"
+  0x08006798: " p x"
+  0x080067EC: "iF F"
+  0x0800683A: "$L F"
+  0x0800687A: "iF F"
+  0x080068D5: "%!zY"
+  0x080068DB: "JazPT9"
+  0x080069DB: "``x@"
+  0x080069E0: "`p`x"
+  0x08006A36: " a i"
+  0x08006A3E: "'ahkv"
+  0x08006AAF: "$Bi-"
+  0x08006AB5: "D$y,"
+  0x08006AE1: "pAq0"
+  0x08006B24: "iF F"
+  0x08006BCA: "iF F"
+  0x08006BF5: "%!zY"
+  0x08006BFB: "JazPT9"
+  0x08006CFB: "``x@"
+  0x08006D00: "`p`x"
+  0x08006D56: " a i"
+  0x08006DCF: "$Bi-"
+  0x08006DD5: "D$y,"
+  0x08006E01: "pAq0"
+  0x08006E44: "iF F"
+  0x08006EF0: "iF F"
+  0x08006F19: "%!za"
+  0x08006F1F: "JazPTA"
+  0x0800701F: "``x@"
+  0x08007024: "`p`x"
+  0x08007266: "+H)KBzEnS"
+  0x08007275: "h,DDf"
+  0x0800728C: "Cr"J!"
+  0x08007295: "h!Id,"
+  0x080072BD: "L%hM"
+  0x08007508: "Qp2x""
+  0x08007510: "2p2x""
+  0x08007518: "2p2xB"
+  0x080077F8: "ouVH"
+  0x080077FD: "p0x@"
+  0x08007804: "0p0x "
+  0x0800780C: "0p0x "
+  0x0800796A: ""L&h"K"
+  0x08007998: "pG$h"
+  0x08007A0E: "!H!J"
+  0x08007A72: "PCd""
+  0x08007AB1: "h9L b"
+  0x08007ABA: " j```hO"
+  0x08007AD1: "h2M(`2H"
+  0x08007AF6: ",J,K"
+  0x08007B12: "'J'K"
+  0x08007B20: "@B `(h"
+  0x08007B2C: "@B"I"
+  0x08007B31: "` hd!"
+  0x08007B3E: "L "h"
+  0x08007B55: "H#hO"
+  0x08007B6A: "zqd+"
+  0x08007D86: "Z!HF"
+  0x08007E20: "]HCF"
+  0x08007EB4: "8LhFz4B]a]"
+  0x08007ED2: "Jp# "
+  0x08007EF2: "Op`y08"
+  0x08007F4F: "Jd!&:"
+  0x08007F80: "N4GEA1601C0001"
+  0x08007F90: "000000"
+  0x08007FD4: "pGpG"
+  0x08008097: "  psO"
+  0x080081FE: "@x7("
+  0x08008284: "FLASH_NAME" <<<
+  0x080082E7: " a!#""
+  0x080082EF: "#g$(%"
+  0x080082F7: "&g'&("
+  0x08008315: "1n2&3"
+  0x08008323: "6o7$8"
+  0x0800833D: "?s@!A"
+  0x08008343: "AzB%C"
+  0x08008349: "CzD$E"
+  0x08008417: "v"wkw"
+  0x0800842F: "zAz|z"
+  0x08008437: "z&{\{"
+  0x08008441: "{)|Y|"
+  0x0800844D: "}9}b}"
+  0x0800845B: "~>~_~~~"
+
+======================================================================
+  PROTOCOL HANDLER ANALYSIS: DRV_1.2.6
+======================================================================
+  Found 3 candidate protocol handler regions
+
+  --- Candidate at offset 0x005936 (0x08006936) ---
+    0x08006926: strb     r5, [r4, #7]
+    0x08006928: strb     r5, [r4, #9]
+    0x0800692A: b        #0x8006946
+    0x0800692C: add      r0, r3
+    0x0800692E: strh     r0, [r4, #0xc]
+    0x08006930: pop      {r4, r5, r6, pc}
+    0x08006932: ldr      r1, [pc, #0x20]
+    0x08006934: movs     r2, #1
+    0x08006936: cmp      r0, #0x5a <<< HEADER BYTE 1 (0x5A)
+    0x08006938: ldrb     r1, [r1, #7]
+    0x0800693A: beq      #0x800694a
+    0x0800693C: cmp      r0, #0xa5 <<< HEADER BYTE 2 (0xA5)
+    0x0800693E: bne      #0x80068ec
+    0x08006940: cmp      r1, #0
+    0x08006942: beq      #0x80068ec
+    0x08006944: strb     r2, [r4, #8]
+    0x08006946: strh     r5, [r4, #0xc]
+    0x08006948: pop      {r4, r5, r6, pc}
+    0x0800694A: cmp      r1, #0
+    0x0800694C: bne      #0x80068ec
+    0x0800694E: strb     r2, [r4, #7]
+    0x08006950: pop      {r4, r5, r6, pc}
+    0x08006952: movs     r0, r0
+    0x08006954: lsls     r0, r1, #0xe
+    0x08006956: movs     r0, #0
+    0x08006958: lsrs     r0, r7, #0xc
+    0x0800695A: movs     r0, #0
+    0x0800695C: ldr      r0, [pc, #0x2c]
+    0x0800695E: ldrb     r1, [r0, #3]
+    0x08006960: cmp      r1, #0
+    0x08006962: bne      #0x800698a
+    0x08006964: ldrb     r1, [r0, #5]
+
+  --- Candidate at offset 0x005C56 (0x08006C56) ---
+    0x08006C46: strb     r5, [r4, #7]
+    0x08006C48: strb     r5, [r4, #9]
+    0x08006C4A: b        #0x8006c66
+    0x08006C4C: add      r0, r3
+    0x08006C4E: strh     r0, [r4, #0xc]
+    0x08006C50: pop      {r4, r5, r6, pc}
+    0x08006C52: ldr      r1, [pc, #0x20]
+    0x08006C54: movs     r2, #1
+    0x08006C56: cmp      r0, #0x5a <<< HEADER BYTE 1 (0x5A)
+    0x08006C58: ldrb     r1, [r1, #7]
+    0x08006C5A: beq      #0x8006c6a
+    0x08006C5C: cmp      r0, #0xa5 <<< HEADER BYTE 2 (0xA5)
+    0x08006C5E: bne      #0x8006c0c
+    0x08006C60: cmp      r1, #0
+    0x08006C62: beq      #0x8006c0c
+    0x08006C64: strb     r2, [r4, #8]
+    0x08006C66: strh     r5, [r4, #0xc]
+    0x08006C68: pop      {r4, r5, r6, pc}
+    0x08006C6A: cmp      r1, #0
+    0x08006C6C: bne      #0x8006c0c
+    0x08006C6E: strb     r2, [r4, #7]
+    0x08006C70: pop      {r4, r5, r6, pc}
+    0x08006C72: movs     r0, r0
+    0x08006C74: lsls     r4, r4, #0xe
+    0x08006C76: movs     r0, #0
+    0x08006C78: asrs     r0, r6, #4
+    0x08006C7A: movs     r0, #0
+    0x08006C7C: ldr      r0, [pc, #0x2c]
+    0x08006C7E: ldrb     r1, [r0, #3]
+    0x08006C80: cmp      r1, #0
+    0x08006C82: bne      #0x8006caa
+    0x08006C84: ldrb     r1, [r0, #5]
+
+  --- Candidate at offset 0x005F7C (0x08006F7C) ---
+    0x08006F6C: strb     r5, [r4, #7]
+    0x08006F6E: strb     r5, [r4, #9]
+    0x08006F70: b        #0x8006f8c
+    0x08006F72: add      r0, r3
+    0x08006F74: strh     r0, [r4, #0xc]
+    0x08006F76: pop      {r4, r5, r6, pc}
+    0x08006F78: ldr      r1, [pc, #0x1c]
+    0x08006F7A: movs     r2, #1
+    0x08006F7C: cmp      r0, #0x5a <<< HEADER BYTE 1 (0x5A)
+    0x08006F7E: ldrb     r1, [r1, #7]
+    0x08006F80: beq      #0x8006f90
+    0x08006F82: cmp      r0, #0xa5 <<< HEADER BYTE 2 (0xA5)
+    0x08006F84: bne      #0x8006f32
+    0x08006F86: cmp      r1, #0
+    0x08006F88: beq      #0x8006f32
+    0x08006F8A: strb     r2, [r4, #8]
+    0x08006F8C: strh     r5, [r4, #0xc]
+    0x08006F8E: pop      {r4, r5, r6, pc}
+    0x08006F90: cmp      r1, #0
+    0x08006F92: bne      #0x8006f32
+    0x08006F94: strb     r2, [r4, #7]
+    0x08006F96: pop      {r4, r5, r6, pc}
+    0x08006F98: lsls     r4, r7, #0xe
+    0x08006F9A: movs     r0, #0
+    0x08006F9C: asrs     r0, r5, #0x1c
+    0x08006F9E: movs     r0, #0
+    0x08006FA0: ldr      r0, [pc, #0x2c]
+    0x08006FA2: ldrb     r1, [r0, #3]
+    0x08006FA4: cmp      r1, #0
+    0x08006FA6: bne      #0x8006fce
+    0x08006FA8: ldrb     r1, [r0, #5]
+    0x08006FAA: cmp      r1, #0
+
+======================================================================
+  USART INTERRUPT HANDLER DISASSEMBLY: DRV_1.2.6
+======================================================================
+
+  USART1 IRQ Handler at 0x0800111A:
+    0x0800111A: b        #0x800111a
+    0x0800111C: ldrb     r5, [r0, r5]
+    0x0800111E: lsrs     r0, r0, #0x20
+    0x08001120: asrs     r5, r5, #3
+    0x08001122: lsrs     r0, r0, #0x20
+    0x08001124: orr.w    r3, r0, r1
+    0x08001128: lsls     r3, r3, #0x1e
+    0x0800112A: beq      #0x8001134
+    0x0800112C: b        #0x8001142
+    0x0800112E: ldm      r1!, {r3}
+    0x08001130: subs     r2, r2, #4
+    0x08001132: stm      r0!, {r3}
+    0x08001134: cmp      r2, #4
+    0x08001136: bhs      #0x800112e
+    0x08001138: b        #0x8001142
+    0x0800113A: ldrb     r3, [r1], #1
+    0x0800113E: strb     r3, [r0], #1
+    0x08001142: subs     r2, r2, #1
+    0x08001144: bhs      #0x800113a
+    0x08001146: bx       lr <<< Return
+
+  USART2 IRQ Handler at 0x0800111A:
+    0x0800111A: b        #0x800111a
+    0x0800111C: ldrb     r5, [r0, r5]
+    0x0800111E: lsrs     r0, r0, #0x20
+    0x08001120: asrs     r5, r5, #3
+    0x08001122: lsrs     r0, r0, #0x20
+    0x08001124: orr.w    r3, r0, r1
+    0x08001128: lsls     r3, r3, #0x1e
+    0x0800112A: beq      #0x8001134
+    0x0800112C: b        #0x8001142
+    0x0800112E: ldm      r1!, {r3}
+    0x08001130: subs     r2, r2, #4
+    0x08001132: stm      r0!, {r3}
+    0x08001134: cmp      r2, #4
+    0x08001136: bhs      #0x800112e
+    0x08001138: b        #0x8001142
+    0x0800113A: ldrb     r3, [r1], #1
+    0x0800113E: strb     r3, [r0], #1
+    0x08001142: subs     r2, r2, #1
+    0x08001144: bhs      #0x800113a
+    0x08001146: bx       lr <<< Return
+
+  USART3 IRQ Handler at 0x0800111A:
+    0x0800111A: b        #0x800111a
+    0x0800111C: ldrb     r5, [r0, r5]
+    0x0800111E: lsrs     r0, r0, #0x20
+    0x08001120: asrs     r5, r5, #3
+    0x08001122: lsrs     r0, r0, #0x20
+    0x08001124: orr.w    r3, r0, r1
+    0x08001128: lsls     r3, r3, #0x1e
+    0x0800112A: beq      #0x8001134
+    0x0800112C: b        #0x8001142
+    0x0800112E: ldm      r1!, {r3}
+    0x08001130: subs     r2, r2, #4
+    0x08001132: stm      r0!, {r3}
+    0x08001134: cmp      r2, #4
+    0x08001136: bhs      #0x800112e
+    0x08001138: b        #0x8001142
+    0x0800113A: ldrb     r3, [r1], #1
+    0x0800113E: strb     r3, [r0], #1
+    0x08001142: subs     r2, r2, #1
+    0x08001144: bhs      #0x800113a
+    0x08001146: bx       lr <<< Return
+
+######################################################################
+######################################################################
+##  FIRMWARE ANALYSIS: DRV_1.6.13
+##  File: C:\Users\Layer\Documents\Ninebot-G30-Custom\ESC-MotorController\firmware\DRV_1.6.13_Compat.bin
+######################################################################
+######################################################################
+
+  File size: 33388 bytes (32.6 KB)
+  Base address: 0x08001000
+  End address:  0x0800926C
+  MD5:    b6ac06ecc4b97e5990581ab2e8f2c19b
+  SHA256: bed15466a92601866c7e344f3351e0a076d69ccb9b040a2d45a8a6ecb650c144
+
+======================================================================
+  VECTOR TABLE ANALYSIS: DRV_1.6.13
+======================================================================
+  [  1] Reset Handler        = 0x08001188 (Thumb)
+  [ 15] SysTick Handler      = 0x08006648 (Thumb)
+  [ 27] DMA1_Ch1             = 0x080011A2 (Thumb)
+  [ 28] DMA1_Ch2             = 0x080011A2 (Thumb)
+  [ 29] DMA1_Ch3             = 0x080011A2 (Thumb)
+  [ 41] TIM1_UP              = 0x080011A2 (Thumb)
+  [ 43] TIM1_CC              = 0x080011A2 (Thumb)
+  [ 47] I2C1_EV              = 0x080011A2 (Thumb)
+  [ 49] I2C2_EV              = 0x080011A2 (Thumb)
+  [ 53] USART1               = 0x080011A2 (Thumb)
+  [ 54] USART2               = 0x080011A2 (Thumb)
+  [ 55] USART3               = 0x080011A2 (Thumb)
+
+  --- UART Interrupt Handlers ---
+  USART1: 0x080011A2 -> active (protocol handler likely here)
+  USART2: 0x080011A2 -> active (protocol handler likely here)
+  USART3: 0x080011A2 -> active (protocol handler likely here)
+
+======================================================================
+  PROTOCOL HEADER SEARCH (0x5A 0xA5): DRV_1.6.13
+======================================================================
+  Found 0 occurrences of 0x5A 0xA5
+
+======================================================================
+  PROTOCOL CONSTANT SEARCH: DRV_1.6.13
+======================================================================
+  0x5A (Protocol header byte 1 (0x5A)): 24 raw occurrences
+  0xA5 (Protocol header byte 2 (0xA5)): 62 raw occurrences
+  0x20 (ESC address (0x20)): 1092 raw occurrences
+  0x21 (BLE address (0x21)): 360 raw occurrences
+  0x22 (BMS address (0x22)): 177 raw occurrences
+  0x3E (App address (0x3E)): 31 raw occurrences
+  0x3F (PC address (0x3F)): 26 raw occurrences
+
+======================================================================
+  CHECKSUM PATTERN SEARCH (XOR 0xFFFF): DRV_1.6.13
+======================================================================
+  0xFFFF (16-bit LE): 24 occurrences
+    Offset 0x0007AB (0x080017AB): F0 A6 FF FF F7 E8 FE 38
+    Offset 0x001473 (0x08002473): F0 F2 FF FF F7 04 FA F8
+    Offset 0x00148B (0x0800248B): F0 E6 FF FF F7 9C FA F8
+    Offset 0x0022F9 (0x080032F9): F7 01 FF FF F7 D9 FE FF
+    Offset 0x00233B (0x0800333B): F0 C0 FF FF F7 DE FE FF
+    Offset 0x002452 (0x08003452): 30 F8 FF FF 00 2C 01 40
+    Offset 0x00247A (0x0800347A): F7 88 FF FF E0 06 00 20
+    Offset 0x0025B6 (0x080035B6): C3 F5 FF FF 70 B5 00 24
+    Offset 0x002B15 (0x08003B15): 40 FE FF FF 7F 41 61 70
+    Offset 0x002C28 (0x08003C28): 05 00 FF FF 07 00 54 55
+  0x0000FFFF (32-bit LE): 1 occurrences
+    Offset 0x003F0A (0x08004F0A): C0 63 FF FF 00 00 1E FB
+
+======================================================================
+  STM32 PERIPHERAL REGISTER REFERENCES: DRV_1.6.13
+======================================================================
+
+  --- FLASH ---
+  FLASH_ACR           :  9 refs at 0x001E9C, 0x001EC4, 0x001EF0, 0x001F04, 0x001F14 (+4 more)
+
+  --- GPIOA ---
+  GPIOA_CRL           :  8 refs at 0x0007B4, 0x003CE0, 0x004194, 0x004A70, 0x004BD4 (+3 more)
+
+  --- GPIOB ---
+  GPIOB_CRL           :  8 refs at 0x0007B8, 0x0009C0, 0x002F84, 0x004198, 0x004A6C (+3 more)
+  GPIOB_IDR           :  1 refs at 0x002FB0
+
+  --- RCC ---
+  RCC_CR              : 10 refs at 0x004BEC, 0x004C0C, 0x004C28, 0x004C44, 0x004C60 (+5 more)
+
+  --- TIM1 ---
+  TIM1_CR1            : 15 refs at 0x002454, 0x00406C, 0x00419C, 0x005100, 0x005784 (+10 more)
+
+  --- TIM3 ---
+  TIM3_CR1            :  8 refs at 0x002F88, 0x005788, 0x0057F8, 0x005864, 0x0058D8 (+3 more)
+
+  --- USART1 ---
+  USART1_DR           :  1 refs at 0x0066F8
+  USART1_SR           :  4 refs at 0x00669C, 0x0067A8, 0x00698C, 0x006A78
+
+  --- USART2 ---
+  USART2_DR           :  1 refs at 0x006060
+  USART2_SR           :  3 refs at 0x006000, 0x006124, 0x006990
+
+  --- USART3 ---
+  USART3_DR           :  1 refs at 0x0063B8
+  USART3_SR           :  3 refs at 0x00635C, 0x006464, 0x006994
+
+======================================================================
+  BAUD RATE CONFIGURATION SEARCH: DRV_1.6.13
+======================================================================
+  BRR=0x0271 (115200 baud (USART1 @ 72MHz PCLK2)): 1 at 0x005599
+  BRR=0x0138 (115200 baud (USART2/3 @ 36MHz PCLK1, alt)): 8 at 0x00383D, 0x0052BB, 0x00669D, 0x0066F9, 0x0067A9, 0x00698D, 0x006A79, 0x007908
+
+======================================================================
+  STRING EXTRACTION: DRV_1.6.13
+======================================================================
+
+  Total strings found (>=4 chars): 363
+
+  --- All extracted strings ---
+  0x08001343: "!pG!"
+  0x08001397: "@pGp"
+  0x080013FD: "`pGScooter_G30_SAT" <<<
+  0x08001456: "SFZF"
+  0x08001473: "FPFYFBF"
+  0x08001486: " F9F"
+  0x08001495: "v,C7C"
+  0x080014CF: "L h@"
+  0x0800153F: "P,DB"
+  0x080016A1: "CB`pGBh"
+  0x080016A9: "CB`pG"
+  0x080016CD: "C#CLyB"
+  0x0800176D: "MiF(F"
+  0x0800177C: "iF(F"
+  0x0800178A: "iF(F"
+  0x08001798: "iF(F"
+  0x08001823: "CDcp"
+  0x08001A24: "(qhxA"
+  0x08001A30: "lphy"
+  0x08001B3A: "-I 1"
+  0x08001B82: "2ptu"
+  0x08001BB9: "F"!  "
+  0x08001BC4: "*p4uhy"
+  0x08001BD8: "3GA0016A1A0001"
+  0x08001C3F: "MXx)x"
+  0x08001C4C: "(xXp(x"
+  0x08001CA3: "AUK@"
+  0x08001CED: "1G]CJ"
+  0x08001E0F: "AgJhLhK"
+  0x08001E26: "bHWydN"
+  0x08001E3F: "8GE{"
+  0x08001E48: "]H@x78]L$x"
+  0x08001E9A: "5heE$"
+  0x08001F10: "GCx "
+  0x08001F24: " FhC"
+  0x08001F60: "5heE"
+  0x08001FD1: " &ILy"
+  0x08001FDA: "%M/h%N%L"
+  0x08001FFD: "`x"&"
+  0x08002054: "RB h"
+  0x0800208A: "@lhKiHiN"
+  0x08002103: "p/qL"
+  0x08002169: "p,ql"
+  0x0800218F: "vd(""
+  0x0800226A: "YCJC"
+  0x0800235C: "8bPI"
+  0x080023DA: "d!hF"
+  0x080023E6: "=!HC"
+  0x080023EF: "FIBhF"
+  0x08002556: "3@HE"
+  0x08002576: "3@HE"
+  0x0800258E: "3 0y"
+  0x080025AE: ",pWI"
+  0x08002653: "p2rF"
+  0x080026E2: "I@*p"
+  0x080027D0: "(ud("
+  0x080027F9: "td(&"
+  0x080027FF: "t.q|"
+  0x080028B2: "nqlu"
+  0x08002938: "BJCKO"
+  0x08002A74: "/0KvpG"
+  0x08002B6C: "000000"
+  0x08002B85: "1HqpG"
+  0x08002BD3: "`6I6J"
+  0x08002BE4: "H`pG1J"
+  0x08002BF6: "H`pG-J(2"
+  0x08002C06: "p`H`pG(J<2"
+  0x08002C18: "p@H`pG$JP2"
+  0x08002C2A: "p H`pG"
+  0x08002C3E: "H`pG"
+  0x08002C4E: "p`H`pG"
+  0x08002CCB: "E,C#C"
+  0x08002CD5: "i#CLj#C"
+  0x08002D0D: "`pGpG"
+  0x08002D37: "ND00`"
+  0x08002D3D: "O@88`"
+  0x08002D43: "MD0(`O"
+  0x08002D55: "  `1h"
+  0x08002DDD: "C!`#"
+  0x08002E52: " `e` h@"
+  0x08002E5C: " `8F"
+  0x08002E64: "!h1@!`"
+  0x08002E80: " aea i@"
+  0x08002E8A: " a8F"
+  0x08002E92: "!i1@!a"
+  0x08002F4C: ")h9@)`"
+  0x08002F58: "pH@F"
+  0x08002F74: ")i9@)a"
+  0x08002F9B: "` i@"
+  0x08002FA2: " a i@"
+  0x08002FAA: " a0F"
+  0x08002FC1: "@"ap"
+  0x08002FC9: "@ a i@"
+  0x08002FF3: "@!ap"
+  0x0800300F: "IA`pG#"
+  0x08003141: "M y!lU"
+  0x08003166: " q@("
+  0x0800316D: "  q l"
+  0x08003199: "hHCd!"
+  0x080031CA: "d!HCO"
+  0x08003218: "aaAbF"
+  0x08003257: "LLadB"
+  0x080032CE: "h`WI"
+  0x080032DA: "#FhF"
+  0x08003565: " `q`y "
+  0x080036B5: "&Z%%p"
+  0x080036C1: "p!qcq"
+  0x08003912: "@pP`"
+  0x0800391F: "pP`0"
+  0x08003934: "@`P`"
+  0x08003940: "@`P`0"
+  0x080039A3: "pP`0"
+  0x08003A5E: "@pP`"
+  0x08003A78: "@pP`"
+  0x08003A84: "@pP`"
+  0x08003A8E: "@`P`"
+  0x08003AB3: "@P`v"
+  0x08003AC9: "@P`k"
+  0x08003ADF: "pP``"
+  0x08003AF5: "`P`U"
+  0x08003B18: "AapG"
+  0x08003B1D: "apGO"
+  0x08003C4D: "kpGl"
+  0x08003C7A: "(a(i"
+  0x08003C7F: "jHC(a,i"
+  0x08003C9B: "i+IIB"
+  0x08003D8D: "@US7"
+  0x08003DE6: "QC!a"
+  0x08003E61: "HpGUU"
+  0x08003EC6: ""P1 "
+  0x08003F3A: "@! F"
+  0x08003F54: "_a F"
+  0x08003FBC: "kL!i"
+  0x08003FC4: "!iJB"
+  0x08003FCA: ""iel"
+  0x08004008: "ap%dbd"
+  0x0800400F: "jWOO"
+  0x08004143: "i"bby"
+  0x08004155: "ibbby"
+  0x0800415F: "i)D!b#r"
+  0x080041D9: "j9xE"
+  0x080041E0: "8k9x"
+  0x08004244: "8xJCE"
+  0x080042C3: "j9xE"
+  0x080042CE: "HC9xE"
+  0x080042FC: "8y'LX"
+  0x08004348: "xk9xE"
+  0x0800452E: "iH:F)F"
+  0x0800456D: " YI[J"
+  0x080045AD: "h:Fi"
+  0x080045FA: "0i2i"
+  0x08004839: "`]H$8"
+  0x080048CA: "N@>O8x"
+  0x080048EC: "8x7("
+  0x080048F4: "F@xx"
+  0x080048FC: "xx7("
+  0x080049DA: ""0#I"
+  0x080049F7: "#0 &"
+  0x08004A17: "F"!  "
+  0x08004A2F: "F"!  "
+  0x08004A45: "F"!  "
+  0x08004BBB: "#8L`"
+  0x08004C32: "d%MC"
+  0x08004C8A: " p x"
+  0x08004D5F: "@pG8"
+  0x08004E85: "KCa[B"
+  0x08004EA1: "HHa@B"
+  0x08004F6E: "M !M"
+  0x08004FA8: ".f>a"
+  0x08004FAE: ",n!Dya"
+  0x08004FD5: "s)nQC"
+  0x0800504D: "`pG ,"
+  0x080050A0: ">N0F"
+  0x080050AC: "(@  "
+  0x080052BC: "JFRH"
+  0x080052EF: "#>!  "
+  0x08005324: "6M(x"
+  0x0800534D: ""!!  "
+  0x08005370: "H`&L 4"
+  0x08005397: ""!!  "
+  0x080053B4: "BxP#!!  "
+  0x080053E8: "NBScooter0001"
+  0x08005477: "&hO")r"
+  0x08005502: ""x# "
+  0x08005516: "ax=)"
+  0x08005570: ">t~v"
+  0x080055D1: "x"x" "
+  0x08005607: "x"x! "
+  0x08005652: "&&$$$zzzX)s"
+  0x08005723: """!  "
+  0x08005798: "I`dH"
+  0x080057F0: "`yN("
+  0x08005812: "!zC)"
+  0x0800581D: "yT(<"
+  0x08005823: "yG(9"
+  0x08005828: " z1(6"
+  0x0800583B: "!9K 3"
+  0x08005848: "IyQC@"
+  0x08005860: "@B4I"
+  0x0800587F: "%.I-H"
+  0x08005887: "`JhB`"
+  0x080058D1: "I xHp"
+  0x080058FC: "AF F"
+  0x08005A19: "tpG|"
+  0x08005A9D: "p(x@"
+  0x08005B3F: "@#OiF8F"
+  0x08005B57: "@iF8F"
+  0x08005B66: ")F@F"
+  0x08005B7B: "@iF@F"
+  0x08005B84: ")F@F"
+  0x08005BA3: "@iF(F"
+  0x08005BC3: "@iF8F"
+  0x08005BE5: "CQ`pG"
+  0x08005BFD: "CQapGQi"
+  0x08005C05: "CQapG"
+  0x08005C82: "OLah"
+  0x08005CA0: "bhIK"
+  0x08005CC6: "ah@J"
+  0x08005D0D: "!0O["
+  0x08005D6F: "@B`ah"
+  0x08005D77: "!ehm"
+  0x08005F66: "FFwCO"
+  0x08005F75: "g~CO"
+  0x08005FFB: "+?Pb"
+  0x080060E1: "N5pq"
+  0x0800610A: "'L'x#F&N"
+  0x0800619B: "DIB!b"
+  0x08006310: " aSN"
+  0x080063C5: "` !8F"
+  0x080063D3: "D`am"
+  0x080063DC: "ahd "
+  0x0800640C: "@Bd("
+  0x08006420: "@Bd("
+  0x08006434: "@Bd("
+  0x08006446: "@Bd("
+  0x080064A3: "L h "
+  0x080064EF: "u)F0F"
+  0x0800653E: "HpHx"
+  0x08006545: "1HqpG"
+  0x08006555: "L pap"
+  0x0800655D: "p%q0"
+  0x0800656D: "L pap"
+  0x08006575: "p%q0"
+  0x080065DF: "`AhA`Ah!"
+  0x080065E8: "`QA`AhA`Ah!"
+  0x080065F5: "aA`AhA"
+  0x080065FD: "aA`Ah"
+  0x08006605: "@A`AhA"
+  0x08006624: "A`AhA"
+  0x0800662C: "A`Ah"
+  0x0800664E: "!KXh"
+  0x08006656: " J I"
+  0x08006847: "q)CA"
+  0x080068B9: "Q9CA"
+  0x08006A96: "pG@k"
+  0x08006BF5: "%5C""
+  0x08006CAB: ""2C""
+  0x08006CB7: ""2C#"
+  0x08006D11: "$4C%"
+  0x08006D1D: "6.CM"
+  0x08006DAF: "dpGAbpG"
+  0x08006EC8: "(a(i"
+  0x08006ED0: ".a8o"
+  0x08006F68: "iFXF"
+  0x08006F9C: "@!PF"
+  0x08006FB6: "iFXF"
+  0x08006FE2: "la(x@"
+  0x08006FE8: "(p(x"
+  0x08007096: "#L F"
+  0x08007134: "!KazXTA"
+  0x08007243: "``x@"
+  0x08007248: "`p`x"
+  0x080072A4: "(a(i"
+  0x080072AC: ".axk"
+  0x0800730B: "qPq0"
+  0x08007321: "$Qi-"
+  0x08007327: "D$y,"
+  0x08007353: "pPq0"
+  0x080073C5: "ppGD"
+  0x08007474: "!KazXTA"
+  0x0800752D: "ppGD"
+  0x08007583: "``x@"
+  0x08007588: "`p`x"
+  0x080075E4: "(a(i"
+  0x0800764B: "qPq0"
+  0x08007661: "$Qi-"
+  0x08007667: "D$y,"
+  0x08007693: "pPq0"
+  0x080077B8: "!KazXTI"
+  0x080078C7: "``x@"
+  0x080078CC: "`p`x"
+  0x08007B1C: ",J+M"
+  0x08007B4F: "h!Id-"
+  0x08007B87: "`(h@"
+  0x08007B99: "NP|@6"
+  0x08007BA6: "/h9D"
+  0x08007BAB: "a,hF"
+  0x08007DA6: "QP#x#"
+  0x08007DAE: "#p#x#"
+  0x08007DB6: "#p#xC"
+  0x08007DEA: "R d#"
+  0x08007E00: "H d*"
+  0x080081C1: "p x@"
+  0x080081C8: " p x "
+  0x080081D0: " p x "
+  0x080082C6: "iL$<!h"
+  0x080083AF: "8```h"
+  0x080084AD: "`!xA"
+  0x080084B4: "!p#I"
+  0x080084E5: "p!x!"
+  0x08008556: "&J&I"
+  0x08008561: "a%I%K"
+  0x0800856F: "a#L`"
+  0x080085C2: "zbQC"
+  0x080085CF: " H3X"
+  0x08008611: "h_L b"
+  0x0800861A: " j```hO"
+  0x08008631: "hXL `XH"
+  0x08008654: " h@B%"
+  0x08008666: " h@B"
+  0x08008672: " h@B"
+  0x0800867E: "HJHK"
+  0x08008694: "DJEK"
+  0x080086A4: " h(` h"
+  0x080086AE: " h@B"
+  0x080086B4: " h>I"
+  0x080086B9: "`(hd!"
+  0x080086C6: "L *h"
+  0x080086D0: "j!"h"
+  0x080086EE: "+hd+"
+  0x080086FC: "zqd+"
+  0x080087BF: "IHi@"
+  0x08008982: "Z!0F"
+  0x08008AB2: "jKz3"
+  0x08008ACE: "Jp# "
+  0x08008B0B: "xY)*"
+  0x08008B1A: "OpXy08"
+  0x08008B6A: "ZxT*"
+  0x08008B97: "xQ(C"
+  0x08008BAC: "YxT)"
+  0x08008BE3: "xJ( "
+  0x08008BF3: "Id &9"
+  0x08008C44: "N4GEA1601C0001"
+  0x08008C54: "000000"
+  0x08008CAC: "pGpG"
+  0x08008D3E: "@BpG"
+  0x08008D78: "uNvO"
+  0x08008F64: "FLASH_NAME" <<<
+  0x08008FC7: " a!#""
+  0x08008FCF: "#g$(%"
+  0x08008FD7: "&g'&("
+  0x08008FF5: "1n2&3"
+  0x08009003: "6o7$8"
+  0x0800901D: "?s@!A"
+  0x08009023: "AzB%C"
+  0x08009029: "CzD$E"
+  0x080090F7: "v"wkw"
+  0x0800910F: "zAz|z"
+  0x08009117: "z&{\{"
+  0x08009121: "{)|Y|"
+  0x0800912D: "}9}b}"
+  0x0800913B: "~>~_~~~"
+  0x08009222: ""ZPit"
+
+======================================================================
+  PROTOCOL HANDLER ANALYSIS: DRV_1.6.13
+======================================================================
+  Found 4 candidate protocol handler regions
+
+  --- Candidate at offset 0x0026B6 (0x080036B6) ---
+    0x080036A6: strh     r0, [r6, #0xe]
+    0x080036A8: movs     r0, #1
+    0x080036AA: b        #0x80036a4
+    0x080036AC: push     {r4, r5, r6, r7, lr}
+    0x080036AE: ldrd     ip, r7, [sp, #0x14]
+    0x080036B2: ldr      r4, [sp, #0x1c]
+    0x080036B4: movs     r6, #0
+    0x080036B6: movs     r5, #0x5a <<< HEADER BYTE 1 (0x5A)
+    0x080036B8: strb     r5, [r4]
+    0x080036BA: movs     r5, #0xa5 <<< HEADER BYTE 2 (0xA5)
+    0x080036BC: strb     r5, [r4, #1]
+    0x080036BE: strb     r2, [r4, #2]
+    0x080036C0: strb     r0, [r4, #3]
+    0x080036C2: strb     r1, [r4, #4]
+    0x080036C4: strb     r3, [r4, #5]
+    0x080036C6: movs     r5, #7
+    0x080036C8: strb.w   ip, [r4, #6]
+    0x080036CC: b        #0x80036dc
+    0x080036CE: mov      r0, r5
+    0x080036D0: ldrb     r1, [r7, r6]
+    0x080036D2: adds     r5, r5, #1
+    0x080036D4: uxtb     r5, r5
+    0x080036D6: strb     r1, [r4, r0]
+    0x080036D8: adds     r6, r6, #1
+    0x080036DA: uxtb     r6, r6
+    0x080036DC: cmp      r6, r2
+    0x080036DE: blo      #0x80036ce
+    0x080036E0: subs     r1, r5, #2
+    0x080036E2: adds     r0, r4, #2
+
+  --- Candidate at offset 0x006194 (0x08007194) ---
+    0x08007184: strb     r5, [r4, #9]
+    0x08007186: strh     r5, [r4, #0xc]
+    0x08007188: pop      {r4, r5, r6, pc}
+    0x0800718A: add      r0, r2
+    0x0800718C: strh     r0, [r4, #0xc]
+    0x0800718E: pop      {r4, r5, r6, pc}
+    0x08007190: ldr      r1, [pc, #0x24]
+    0x08007192: movs     r2, #1
+    0x08007194: cmp      r0, #0x5a <<< HEADER BYTE 1 (0x5A)
+    0x08007196: ldrb     r1, [r1, #7]
+    0x08007198: bne      #0x800719c
+    0x0800719A: cbz      r1, #0x80071a2
+    0x0800719C: cmp      r0, #0xa5 <<< HEADER BYTE 2 (0xA5)
+    0x0800719E: beq      #0x80071a6
+    0x080071A0: b        #0x80071ae
+    0x080071A2: strb     r2, [r4, #7]
+    0x080071A4: pop      {r4, r5, r6, pc}
+    0x080071A6: cbz      r1, #0x80071ae
+    0x080071A8: strb     r2, [r4, #8]
+    0x080071AA: strh     r5, [r4, #0xc]
+    0x080071AC: pop      {r4, r5, r6, pc}
+    0x080071AE: strb     r5, [r4, #8]
+    0x080071B0: strb     r5, [r4, #7]
+    0x080071B2: strh     r5, [r4, #0xc]
+    0x080071B4: pop      {r4, r5, r6, pc}
+    0x080071B6: movs     r0, r0
+    0x080071B8: lsls     r4, r5, #0xe
+    0x080071BA: movs     r0, #0
+    0x080071BC: asrs     r0, r7, #3
+    0x080071BE: movs     r0, #0
+    0x080071C0: ldr      r0, [pc, #0x2c]
+    0x080071C2: ldrb     r1, [r0, #3]
+
+  --- Candidate at offset 0x0064D4 (0x080074D4) ---
+    0x080074C4: strb     r5, [r4, #9]
+    0x080074C6: strh     r5, [r4, #0xc]
+    0x080074C8: pop      {r4, r5, r6, pc}
+    0x080074CA: add      r0, r2
+    0x080074CC: strh     r0, [r4, #0xc]
+    0x080074CE: pop      {r4, r5, r6, pc}
+    0x080074D0: ldr      r1, [pc, #0x24]
+    0x080074D2: movs     r2, #1
+    0x080074D4: cmp      r0, #0x5a <<< HEADER BYTE 1 (0x5A)
+    0x080074D6: ldrb     r1, [r1, #7]
+    0x080074D8: bne      #0x80074dc
+    0x080074DA: cbz      r1, #0x80074e2
+    0x080074DC: cmp      r0, #0xa5 <<< HEADER BYTE 2 (0xA5)
+    0x080074DE: beq      #0x80074e6
+    0x080074E0: b        #0x80074ee
+    0x080074E2: strb     r2, [r4, #7]
+    0x080074E4: pop      {r4, r5, r6, pc}
+    0x080074E6: cbz      r1, #0x80074ee
+    0x080074E8: strb     r2, [r4, #8]
+    0x080074EA: strh     r5, [r4, #0xc]
+    0x080074EC: pop      {r4, r5, r6, pc}
+    0x080074EE: strb     r5, [r4, #8]
+    0x080074F0: strb     r5, [r4, #7]
+    0x080074F2: strh     r5, [r4, #0xc]
+    0x080074F4: pop      {r4, r5, r6, pc}
+    0x080074F6: movs     r0, r0
+    0x080074F8: lsls     r4, r0, #0x15
+    0x080074FA: movs     r0, #0
+    0x080074FC: adds     r4, r1, r3
+    0x080074FE: movs     r0, #0
+    0x08007500: ldr      r0, [pc, #0x2c]
+    0x08007502: ldrb     r1, [r0, #3]
+
+  --- Candidate at offset 0x00681A (0x0800781A) ---
+    0x0800780A: strb     r5, [r4, #9]
+    0x0800780C: strh     r5, [r4, #0xc]
+    0x0800780E: pop      {r4, r5, r6, pc}
+    0x08007810: add      r0, r2
+    0x08007812: strh     r0, [r4, #0xc]
+    0x08007814: pop      {r4, r5, r6, pc}
+    0x08007816: ldr      r1, [pc, #0x24]
+    0x08007818: movs     r2, #1
+    0x0800781A: cmp      r0, #0x5a <<< HEADER BYTE 1 (0x5A)
+    0x0800781C: ldrb     r1, [r1, #7]
+    0x0800781E: bne      #0x8007822
+    0x08007820: cbz      r1, #0x8007828
+    0x08007822: cmp      r0, #0xa5 <<< HEADER BYTE 2 (0xA5)
+    0x08007824: beq      #0x800782c
+    0x08007826: b        #0x8007834
+    0x08007828: strb     r2, [r4, #7]
+    0x0800782A: pop      {r4, r5, r6, pc}
+    0x0800782C: cbz      r1, #0x8007834
+    0x0800782E: strb     r2, [r4, #8]
+    0x08007830: strh     r5, [r4, #0xc]
+    0x08007832: pop      {r4, r5, r6, pc}
+    0x08007834: strb     r5, [r4, #8]
+    0x08007836: strb     r5, [r4, #7]
+    0x08007838: strh     r5, [r4, #0xc]
+    0x0800783A: pop      {r4, r5, r6, pc}
+    0x0800783C: lsls     r4, r2, #0xe
+    0x0800783E: movs     r0, #0
+    0x08007840: lsrs     r0, r0, #0xc
+    0x08007842: movs     r0, #0
+    0x08007844: ldr      r0, [pc, #0x2c]
+    0x08007846: ldrb     r1, [r0, #3]
+    0x08007848: cmp      r1, #0
+
+======================================================================
+  USART INTERRUPT HANDLER DISASSEMBLY: DRV_1.6.13
+======================================================================
+
+  USART1 IRQ Handler at 0x080011A2:
+    0x080011A2: b        #0x80011a2
+    0x080011A4: str      r1, [r5, #0x6c]
+    0x080011A6: lsrs     r0, r0, #0x20
+    0x080011A8: asrs     r1, r6, #5
+    0x080011AA: lsrs     r0, r0, #0x20
+    0x080011AC: orr.w    r3, r0, r1
+    0x080011B0: lsls     r3, r3, #0x1e
+    0x080011B2: beq      #0x80011bc
+    0x080011B4: b        #0x80011ca
+    0x080011B6: ldm      r1!, {r3}
+    0x080011B8: subs     r2, r2, #4
+    0x080011BA: stm      r0!, {r3}
+    0x080011BC: cmp      r2, #4
+    0x080011BE: bhs      #0x80011b6
+    0x080011C0: b        #0x80011ca
+    0x080011C2: ldrb     r3, [r1], #1
+    0x080011C6: strb     r3, [r0], #1
+    0x080011CA: subs     r2, r2, #1
+    0x080011CC: bhs      #0x80011c2
+    0x080011CE: bx       lr <<< Return
+
+  USART2 IRQ Handler at 0x080011A2:
+    0x080011A2: b        #0x80011a2
+    0x080011A4: str      r1, [r5, #0x6c]
+    0x080011A6: lsrs     r0, r0, #0x20
+    0x080011A8: asrs     r1, r6, #5
+    0x080011AA: lsrs     r0, r0, #0x20
+    0x080011AC: orr.w    r3, r0, r1
+    0x080011B0: lsls     r3, r3, #0x1e
+    0x080011B2: beq      #0x80011bc
+    0x080011B4: b        #0x80011ca
+    0x080011B6: ldm      r1!, {r3}
+    0x080011B8: subs     r2, r2, #4
+    0x080011BA: stm      r0!, {r3}
+    0x080011BC: cmp      r2, #4
+    0x080011BE: bhs      #0x80011b6
+    0x080011C0: b        #0x80011ca
+    0x080011C2: ldrb     r3, [r1], #1
+    0x080011C6: strb     r3, [r0], #1
+    0x080011CA: subs     r2, r2, #1
+    0x080011CC: bhs      #0x80011c2
+    0x080011CE: bx       lr <<< Return
+
+  USART3 IRQ Handler at 0x080011A2:
+    0x080011A2: b        #0x80011a2
+    0x080011A4: str      r1, [r5, #0x6c]
+    0x080011A6: lsrs     r0, r0, #0x20
+    0x080011A8: asrs     r1, r6, #5
+    0x080011AA: lsrs     r0, r0, #0x20
+    0x080011AC: orr.w    r3, r0, r1
+    0x080011B0: lsls     r3, r3, #0x1e
+    0x080011B2: beq      #0x80011bc
+    0x080011B4: b        #0x80011ca
+    0x080011B6: ldm      r1!, {r3}
+    0x080011B8: subs     r2, r2, #4
+    0x080011BA: stm      r0!, {r3}
+    0x080011BC: cmp      r2, #4
+    0x080011BE: bhs      #0x80011b6
+    0x080011C0: b        #0x80011ca
+    0x080011C2: ldrb     r3, [r1], #1
+    0x080011C6: strb     r3, [r0], #1
+    0x080011CA: subs     r2, r2, #1
+    0x080011CC: bhs      #0x80011c2
+    0x080011CE: bx       lr <<< Return
+
+######################################################################
+######################################################################
+##  FIRMWARE ANALYSIS: BLE_1.1.0
+##  File: C:\Users\Layer\Documents\Ninebot-G30-Custom\BLE-Dashboard\firmware\BLE_1.1.0.bin
+######################################################################
+######################################################################
+
+  File size: 33612 bytes (32.8 KB)
+  Base address: 0x08001000
+  End address:  0x0800934C
+  MD5:    9cbbaafd6e217c8fb4115fbb5440a443
+  SHA256: 6c0fe0845e74de7b882b44095e44c60836db029d6a711358a94ea494d3733257
+
+======================================================================
+  VECTOR TABLE ANALYSIS: BLE_1.1.0
+======================================================================
+
+  --- UART Interrupt Handlers ---
+  USART1: 0xBF001E40 -> active (protocol handler likely here)
+  USART2: 0xBF00BF00 -> active (protocol handler likely here)
+  USART3: 0xBF00BF00 -> active (protocol handler likely here)
+
+======================================================================
+  PROTOCOL HEADER SEARCH (0x5A 0xA5): BLE_1.1.0
+======================================================================
+  Found 0 occurrences of 0x5A 0xA5
+
+======================================================================
+  PROTOCOL CONSTANT SEARCH: BLE_1.1.0
+======================================================================
+  0x5A (Protocol header byte 1 (0x5A)): 26 raw occurrences
+  0xA5 (Protocol header byte 2 (0xA5)): 24 raw occurrences
+  0x20 (ESC address (0x20)): 1257 raw occurrences
+  0x21 (BLE address (0x21)): 574 raw occurrences
+  0x22 (BMS address (0x22)): 409 raw occurrences
+  0x3E (App address (0x3E)): 19 raw occurrences
+  0x3F (PC address (0x3F)): 21 raw occurrences
+
+======================================================================
+  CHECKSUM PATTERN SEARCH (XOR 0xFFFF): BLE_1.1.0
+======================================================================
+  0xFFFF (16-bit LE): 49 occurrences
+    Offset 0x002A88 (0x08003A88): 00 20 FF FF 00 00 00 ED
+    Offset 0x0031BC (0x080041BC): 00 00 FF FF FF FF FF FF
+    Offset 0x0031BD (0x080041BD): 00 FF FF FF FF FF FF FF
+    Offset 0x0031BE (0x080041BE): FF FF FF FF FF FF FF FF
+    Offset 0x0031BF (0x080041BF): FF FF FF FF FF FF FF FF
+    Offset 0x0031C0 (0x080041C0): FF FF FF FF FF FF FF FF
+    Offset 0x0031C1 (0x080041C1): FF FF FF FF FF FF FF FF
+    Offset 0x0031C2 (0x080041C2): FF FF FF FF FF FF FF FF
+    Offset 0x0031C3 (0x080041C3): FF FF FF FF FF FF FF FF
+    Offset 0x0031C4 (0x080041C4): FF FF FF FF FF FF FF FF
+  0x0000FFFF (32-bit LE): 8 occurrences
+    Offset 0x002A88 (0x08003A88): 00 20 FF FF 00 00 00 ED
+    Offset 0x003398 (0x08004398): 00 20 FF FF 00 00 1C B5
+    Offset 0x00380C (0x0800480C): 00 00 FF FF 00 00 10 B5
+    Offset 0x0038AC (0x080048AC): 00 20 FF FF 00 00 0C 21
+    Offset 0x003F1C (0x08004F1C): 02 00 FF FF 00 00 24 33
+    Offset 0x0043B8 (0x080053B8): 00 00 FF FF 00 00 02 30
+    Offset 0x006A88 (0x08007A88): 00 20 FF FF 00 00 7C B5
+    Offset 0x008084 (0x08009084): 00 20 FF FF 00 00 08 33
+
+======================================================================
+  STM32 PERIPHERAL REGISTER REFERENCES: BLE_1.1.0
+======================================================================
+
+  --- TIM2 ---
+  TIM2_CR1            :  1 refs at 0x006BAD
+
+======================================================================
+  BAUD RATE CONFIGURATION SEARCH: BLE_1.1.0
+======================================================================
+  BRR=0x0271 (115200 baud (USART1 @ 72MHz PCLK2)): 5 at 0x000483, 0x001DE7, 0x0020C3, 0x0049C1, 0x007989
+  BRR=0x0139 (115200 baud (USART2/3 @ 36MHz PCLK1)): 1 at 0x008344
+  BRR=0x0138 (115200 baud (USART2/3 @ 36MHz PCLK1, alt)): 3 at 0x00188B, 0x001957, 0x007AD7
+  BRR=0x1388 (9600 baud (USART1 @ 72MHz)): 1 at 0x003BB9
+
+======================================================================
+  STRING EXTRACTION: BLE_1.1.0
+======================================================================
+
+  Total strings found (>=4 chars): 547
+
+  --- All extracted strings ---
+  0x080012AE: ")F2F"
+  0x0800145E: "byEI"
+  0x0800148C: "by9NR"
+  0x080015DB: "I`C@"
+  0x080016BA: ",M,N"
+  0x08001745: " `w'w"
+  0x08001835: "FlF#p#x"
+  0x080018A9: "tpG@ "
+  0x080018D9: "spGL'"
+  0x08001927: "&hF1"
+  0x08001938: "Z  p"
+  0x08001945: "p@x q)"
+  0x08001961: "\`TjFI"
+  0x080019CB: "r9K:H"
+  0x08001A0F: "@(IHq@ "
+  0x08001A2C: "$K!J"
+  0x08001A31: "\0CPpX\ C"
+  0x08001A71: "JFpQ\!C"
+  0x08001A9B: "pX\(C"
+  0x08001AA9: "pQ\)C"
+  0x08001AC7: "HAzI"
+  0x08001B70: ")i@i"
+  0x08001B7C: "hi)i"
+  0x08001B89: "1H` Fp"
+  0x08001C41: "&1C!p"
+  0x08001C57: "@!pp"
+  0x08001C83: "\aUm"
+  0x08001CBB: "F(OE"
+  0x08001CC1: " yhpCE"
+  0x08001CEF: "i)h`@"
+  0x08001CF8: ""FB@"
+  0x08001D33: "Chh"@"
+  0x08001E31: " (`)"
+  0x08001EAA: "! iFHs"
+  0x08001FA7: " vK9"
+  0x08001FB6: "Z@Jq"
+  0x08001FCA: "nO8i"
+  0x08001FF3: " xqcO8i"
+  0x08002020: "\H2Fi"
+  0x0800203A: "8i2F"
+  0x08002040: "THVI"
+  0x08002094: ";HAiBi"
+  0x080020FD: "h$IJ`"
+  0x080021F1: "F'L'O"
+  0x08002279: ""iF0F"
+  0x080022B8: " x%F"
+  0x080022CC: "hhd("
+  0x080022D2: "e h`"
+  0x080022DF: " h` xp"
+  0x08002316: "2 `u"
+  0x080023AB: "!0@@"
+  0x080023D9: "(`y."
+  0x080023F9: """pbp"
+  0x08002401: "p"qbq"
+  0x0800241F: "#@x-3"
+  0x080024EB: "\ pP\"
+  0x08002511: "%".(+"
+  0x08002554: " y8C"
+  0x08002560: " y0C"
+  0x08002566: " y(C q"
+  0x0800256D: "H!x"0"
+  0x08002573: "paxAp"
+  0x08002583: "qayAq"
+  0x0800277F: "I FHC"
+  0x080027A7: "x!(}"
+  0x080027B3: "`axA`"
+  0x080027EA: "`x ("
+  0x08002849: "">!! "
+  0x0800288D: "psIa#"
+  0x08002893: "xBpJx"
+  0x080028AE: " !! "
+  0x080028CD: "x`xQ"
+  0x080028ED: "8P)~"
+  0x0800292C: " y"x"
+  0x08002950: ".v=H"
+  0x0800295B: "!Ap?I"
+  0x08002971: "" !> "
+  0x080029A4: "\#>!! "
+  0x080029C2: "]#>!"
+  0x08002A07: "H 8@"
+  0x08002A30: "nunt!F8F"
+  0x08002AA9: "!ACI"
+  0x08002BF6: "hF.i"
+  0x08002CCE: "A`pG"
+  0x08002D8B: "sA{I"
+  0x08002D9F: "tC|["
+  0x08002DD5: "|JpB|"
+  0x08002E0F: "  ^(\"
+  0x08002EBB: "a5s`"
+  0x08002EFE: "pG\!"
+  0x08002F48: "*z I"
+  0x0800300A: "aFpF"
+  0x08003019: "2QCpP"
+  0x08003135: "]M]l@"
+  0x08003177: "Fc]["
+  0x0800318E: "pGpG"
+  0x080031E2: "(x*("
+  0x080031F7: "#ZC0:"
+  0x08003220: "(x.("
+  0x08003229: "Chxm"
+  0x0800323D: ""QC09@"
+  0x08003252: "(xl("
+  0x08003308: "8xiF"
+  0x080033FC: "+!jF"
+  0x08003478: "@!jF"
+  0x08003488: "0!jF"
+  0x080034AC: "0!jF"
+  0x080035A0: "0123456789abcdef"
+  0x080035B4: "0123456789ABCDEF"
+  0x080035D8: "9F  "
+  0x080036B6: " pzT!x"
+  0x080036C0: " pzT x"
+  0x080036D4: " pph"
+  0x080036DD: "!AV"x"
+  0x080036FD: "T xbFC"
+  0x08003782: ""F0F"
+  0x0800379F: "&0!hF"
+  0x0800384C: "Y!hF"
+  0x080038AA: ":F!FhF"
+  0x080039A5: "` Fp"
+  0x080039C5: "p1I/NHh"
+  0x08003A05: "%hF6"
+  0x08003A10: "#xax"
+  0x08003A26: "fxax"
+  0x08003A4E: "AQqF"
+  0x08003A5C: ":FFC"
+  0x08003B10: "$&^C"
+  0x08003B27: "&\C.Ud"
+  0x08003B6C: "$#CC"
+  0x08003B7C: "$ GC"
+  0x08003B93: "#.F^C"
+  0x08003BA1: "pX`0"
+  0x08003BD8: "`hxa"
+  0x08003C0E: "!F$#YCS\"
+  0x08003C45: "ID`Ih"
+  0x08003C8A: "$!aC@\"
+  0x08003C9F: "hiF0"
+  0x08003D14: "[E]: flash operation error, opcode:%d" <<<
+  0x08003D3C: "psm callback"
+  0x08003D4F: " [D]: update succ. len = %d" <<<
+  0x08003D70: "[D]: load succ, len = %d"
+  0x08003D8C: "[D]: store succ. len = %d"
+  0x08003DA8: "[D]: clear succ. len = %d"
+  0x08003DF1: "4%p@"
+  0x08003E3E: "#F$3"
+  0x08003E62: "#F$3"
+  0x08003E88: "#F$3"
+  0x08003EAE: "#F$3"
+  0x08003ED4: "#F$3"
+  0x08003EFA: "#F$3"
+  0x08003F93: "x0Fr"
+  0x08003FAD: "&&p)h"
+  0x08004000: ")FIh"
+  0x080040C8: "AI h"
+  0x0800416E: "*O*I"
+  0x080041E3: " [E]: Mi Serivce Init fail, error code=%d" <<<
+  0x08004289: "u!FhFc"
+  0x08004294: "!xhF"
+  0x080042AA: ")F F"
+  0x080042B6: ")F F"
+  0x080043CD: "X!FhF"
+  0x08004464: "hF@z"
+  0x0800446E: "hFAr@z"
+  0x08004479: "0iFHr"
+  0x080044F8: "1xhF"
+  0x080044FD: "sqxAs"
+  0x08004569: " ZCT"
+  0x0800456E: "6I"y&i"
+  0x080046AF: "'}C-"
+  0x080046B7: " hqja"
+  0x080046D7: " axI"
+  0x080046F2: "$"QC"
+  0x080046FD: "ILhGi"
+  0x08004719: "J@:P`"
+  0x080047D7: "" pjT x"
+  0x080047E2: "!p*T xA"
+  0x080048D9: "`A`pG"
+  0x080048EB: "F !hF"
+  0x080048FD: "")FhF"
+  0x08004916: " !hF"
+  0x08004949: "!A`pG"
+  0x08004953: " pGpG"
+  0x0800495F: "xjF#H"
+  0x0800496F: "! OHC"
+  0x080049B5: "X!FhF"
+  0x080049E1: "I49A"
+  0x08004AB6: "T!hF"
+  0x08004B1E: "iFHy"
+  0x08004B33: "@iFHq"
+  0x08004B80: "* iF"
+  0x08004BB5: "qHq("
+  0x08004D05: "I@9@"
+  0x08004D41: " CCsH"
+  0x08004D71: "#ZCjK"
+  0x08004DD7: " oF8t"
+  0x08004E07: "FkCEM["
+  0x08004E23: ""PC>M"
+  0x08004E37: "!HC@"
+  0x08004E47: ""QC2J@:"
+  0x08004E53: "!HC2I@"
+  0x08004E8D: "!HC I$9@"
+  0x08004F76: "T!hF"
+  0x08004F97: ">0p x"
+  0x08005086: "@ iF"
+  0x080050BF: "!@80"
+  0x080050CF: "!$=p"
+  0x080050DC: "@ iF"
+  0x08005114: "0!hF"
+  0x080051C7: " 0pp"
+  0x08005224: "$!YC"
+  0x08005291: ""hF|"
+  0x08005299: "$,`l`"
+  0x080052BC: ",`l`"
+  0x080052C3: ""1F(F"
+  0x080052EC: "NBScooter0001"
+  0x08005319: "FLC$I"
+  0x0800531F: ""PCa"
+  0x08005357: "4;FrF)F"
+  0x080053A4: "rF)F"
+  0x080053CB: "MPC@"
+  0x080053DD: ""QCI"
+  0x08005401: "'HC"N;F"
+  0x08005419: "!HCt"
+  0x08005459: "N'PhF"
+  0x08005468: "B`hxHC"
+  0x0800559E: "P\b("
+  0x080055ED: " `Cqhd"
+  0x0800560D: "J@h$!"
+  0x08005628: "$'xC"
+  0x08005686: "2J$ "
+  0x0800568B: "h`C!F"
+  0x08005699: "!ACjh@"
+  0x080056AC: "/p(KQh$ "
+  0x080056FC: "rFcF"
+  0x0800572A: "(xix"
+  0x080057BF: "#H"H9"
+  0x08005819: "rL!ArA!"
+  0x08005829: "s_"BsN""
+  0x08005837: "tE!At !"
+  0x0800586B: "rhFD"
+  0x080059A0: "mHAy"
+  0x080059F4: "%(+.147"
+  0x08005A28: "Ap4`t`"
+  0x08005A73: " (sh"
+  0x08005A87: "xJsBx"
+  0x08005A97: "yJt@y"
+  0x08005AD2: " !! "
+  0x08005AFC: "aaoozz"
+  0x08005B15: "F)9')"
+  0x08005B23: "FQ9')"
+  0x08005B31: "Fy9')"
+  0x08005B3F: "8'(b"
+  0x08005BB1: " pqh"
+  0x08005BC4: "(9')"
+  0x08005BCA: "(9')"
+  0x08005BD0: "y8'("
+  0x08005BE0: "(9')"
+  0x08005BE6: "Q8'("
+  0x08005BF6: ")8'("
+  0x08005CB0: "!p2T x"
+  0x08005CD8: " x)y@"
+  0x08005D89: "C0F 0"
+  0x08005DA2: "0F$0"
+  0x08005DB6: "0F(0"
+  0x08005DCA: "0F,0"
+  0x08005DDE: "0F00"
+  0x08005DEF: "C0F40"
+  0x08005E03: "C0F80"
+  0x08005E17: "C0F<0"
+  0x08005E3F: "AcF{@"
+  0x08005E6F: "@bFV@"
+  0x08005E8D: "F^@sF"
+  0x08005EB1: "AsFS@"
+  0x08005EBA: ";@S@"
+  0x08005ED9: "AcFwF{@"
+  0x08005EE3: "@sF_@"
+  0x08005F06: "_@7@_@"
+  0x08005F45: "AbFvFr@"
+  0x08005F74: "S@;@S@"
+  0x08005F94: ";Fw@"
+  0x08005FBE: "^@>@^@"
+  0x08005FE0: "gFW@rF"
+  0x0800600C: "z@2@z@"
+  0x0800602E: "sF^@"
+  0x08006035: "@sF^@"
+  0x0800607A: "Z@:@Z@"
+  0x0800609E: "W@~@"
+  0x080060AC: "bFW@"
+  0x080060B3: "@bFW@"
+  0x080060DA: "r@Q@"
+  0x08006100: "TIbDW"
+  0x08006118: "Q@O@"
+  0x0800612B: "@Y@y"
+  0x08006156: "z@Q@"
+  0x08006166: "r@:@r@"
+  0x08006190: "{@Y@"
+  0x080061A0: "K@qFK@"
+  0x080061CC: "q@O@"
+  0x080061DC: "Q@y@q"
+  0x08006200: "r@i@Q@bF"
+  0x08006249: "AwFy@"
+  0x08006280: "fFQ@O@:F"
+  0x08006290: "q@vFq@y"
+  0x080062BE: "q@J@"
+  0x080062CA: "O@aFO@"
+  0x080062F0: "~@q@"
+  0x0800632C: "y@N@"
+  0x08006360: "Q@o@y@"
+  0x0800636F: "AgFqFy@"
+  0x0800639E: "G@y@"
+  0x080063AC: "q@vFq@"
+  0x080063D6: "i@O@1F"
+  0x080063E6: "fFo@w@"
+  0x0800640E: "F@q@"
+  0x0800641A: "~@F@"
+  0x0800644A: "wF}@"
+  0x08006470: "h@W@G@"
+  0x08006480: "p@vFp@("
+  0x080064AA: "y@A@"
+  0x080064BA: "E@u@x"
+  0x080064E0: "i@H@=F"
+  0x080064EC: "q@fFq@i"
+  0x08006518: "=FX@A@pF"
+  0x0800654E: "H@E@"
+  0x08006557: "ApFx@X@"
+  0x08006581: "FY@H@"
+  0x08006590: "h@x@"
+  0x080065B4: "cFA@"
+  0x080065BC: "P@A@"
+  0x080065C6: "h@uFh@"
+  0x080065EC: "fFH@"
+  0x08006626: "Q@H@"
+  0x08006630: "(C9F"
+  0x08006662: "h@A@"
+  0x0800666C: "qF=C9@"
+  0x080066A4: "H@E@"
+  0x080066AF: "F)C(@9@"
+  0x080066E2: "Q@M@"
+  0x08006720: "j@Q@"
+  0x0800672C: ")C*@"
+  0x08006760: "i@J@"
+  0x080067D2: "h@Y@A@"
+  0x080067E4: ")@8@"
+  0x08006816: "H@E@"
+  0x08006821: "@uF)C"
+  0x0800684E: "`FH@"
+  0x08006858: "i@H@"
+  0x08006898: "E@i@"
+  0x080068DC: "H@F@"
+  0x080068E4: "(@)C"
+  0x0800691A: "7Ci@H@"
+  0x08006924: "1@/@"
+  0x08006950: "Q@X@A@"
+  0x08006990: "wFh@F@"
+  0x0800699A: "pF0C"
+  0x080069A0: "7@(@"
+  0x080069D2: "X@E@"
+  0x080069DC: "8C=@0@"
+  0x08006A18: "X@F@"
+  0x08006A20: "(C+@8@"
+  0x08006A58: "X@F@"
+  0x08006A96: "k@X@"
+  0x08006AA7: "@+F3C"
+  0x08006AD2: "u@S@]@"
+  0x08006B08: "vFn@"
+  0x08006B10: "gFo@~@"
+  0x08006B47: "FM@V@u@"
+  0x08006B5C: "n@~@"
+  0x08006B80: "u@fFr@U@"
+  0x08006BC2: "j@V@"
+  0x08006BFC: "u@j@"
+  0x08006C0E: "gFU@u"
+  0x08006C6E: "U@F@n@"
+  0x08006C80: "r@j@"
+  0x08006CA9: "Fu@j@"
+  0x08006CBC: "W@w@"
+  0x08006CE7: ""n@w@"
+  0x08006CF8: "}@U@r"
+  0x08006D1E: "V@M@n@"
+  0x08006D5A: "j@q@J@"
+  0x08006D6A: "q@i@y"
+  0x08006D90: "vFn@"
+  0x08006D9C: "w@Q@"
+  0x08006DA3: ""q@i"
+  0x08006DC3: "FV@i@N@"
+  0x08006DD4: "}@U@I"
+  0x08006DFA: "vFz@u@j@"
+  0x08006E10: "U@}@I"
+  0x08006E44: "F@i@"
+  0x08006E4D: "Ai@w@P"
+  0x08006E82: "B@J@"
+  0x08006EA6: "eFz@u@j@uF"
+  0x08006EBA: "Q@A@i"
+  0x08006EE0: "uFV@w@"
+  0x08006F0A: "gFV@"
+  0x08006F10: "z@V@"
+  0x08006F20: "n@V@"
+  0x08006F6F: "hbhH"
+  0x08006FAA: "#I F"
+  0x08006FB7: ""iF F"
+  0x08006FF4: "(r i"
+  0x0800700A: "(s`i"
+  0x08007072: "2F9FhF"
+  0x08007080: ")FhF"
+  0x080070D0: "(h@!"
+  0x08007124: "@0@<"
+  0x08007159: "i,"Ki!I"
+  0x080071BF: " [W]: flash write func not setting" <<<
+  0x080071E7: " psm retrive succ, "
+  0x0800720B: " retrive token, %02x %02x"
+  0x08007228: "[E]: flash read error" <<<
+  0x0800729B: " [W]: flash write func not setting" <<<
+  0x080072CF: " flash write succ" <<<
+  0x080072E4: "[E]: flash write fail" <<<
+  0x0800748F: " decrypted auth, %x"
+  0x080074AC: "cloud bind succ"
+  0x080074C7: " mi_service, bond succ"
+  0x080074E4: "cloud bind fail"
+  0x08007507: " Register succ,new token, encrypt sn, beaconkey."
+  0x08007597: " [E]: SN timeout, clear token"
+  0x080075B8: "[W]: Weak SN timeout."
+  0x0800776B: " mi_service, waiting SN"
+  0x08007788: "WEAK dev bind succ"
+  0x080077C3: " app bond fail"
+  0x080077D4: "app bond succ"
+  0x080077EF: "F9FhFF"
+  0x080077FA: "#F2F)FhF"
+  0x08007828: "jF!F"
+  0x08007913: " login cfm handler, token: %02x %02x"
+  0x08007943: " decrypted %x"
+  0x08007958: "login cfm succ"
+  0x0800797B: " login cfm fail"
+  0x08007997: "xhFF"
+  0x0800799F: "xApQy"
+  0x080079AF: "yAqQy"
+  0x080079C5: "#*F!F"
+  0x080079DB: "xhFF"
+  0x080079E3: "xApQy"
+  0x080079F3: "xAqQy"
+  0x08007A09: "#*F!F"
+  0x08007AA8: "jF!F"
+  0x08007B2B: " sn: "
+  0x08007B34: "%02x"
+  0x08007B54: "2F)FhF"
+  0x08007B98: "Enter state machine"
+  0x08007CFA: "oF9q2"
+  0x08007D24: "KIIh"
+  0x08007E8F: ""!F(F"
+  0x08007EBA: "iFJq"
+  0x08007F20: "7F:F"
+  0x08007F5B: "  p`p"
+  0x08007F69: "p q6"
+  0x08007FD5: "y qhF"
+  0x080080F7: "H;!@"
+  0x0800811F: " On Connected"
+  0x080081C4: "On Token Written, "
+  0x080081DF: " On Auth Written, "
+  0x080081F7: " SN Arrived"
+  0x0800820F: "IhCD"
+  0x08008296: "@heC("
+  0x080082AF: " Q`p"
+  0x080082E4: "@hQC"
+  0x080082F8: "!h`h"
+  0x08008324: "3F!F"
+  0x08008349: "p.F0F"
+  0x08008364: "1i@i"
+  0x08008370: "pi1i"
+  0x080083A1: "!!p`pp"
+  0x080083E6: "IhBCQ"
+  0x0800842C: "`h2F"
+  0x08008520: ";F*F!F"
+  0x08008572: ".HAiI"
+  0x0800857A: ")i@i"
+  0x0800858E: "hi)i@"
+  0x08008596: "HC#K"
+  0x0800859D: "hqCK"
+  0x080085DC: "u`#h"
+  0x08008664: "IhBCQ"
+  0x080086A8: "+F:F!F"
+  0x080086E0: "4F%x"
+  0x080087AB: " hCA"
+  0x080087CB: "xZCQ"
+  0x0800881C: "IhBCQ"
+  0x08008860: "+F:F!F"
+  0x0800888B: "78x@"
+  0x08008892: "8pyx"\"
+  0x080088A6: "8xyx \a\@"
+  0x080088B4: "I] \A@"
+  0x080088CF: " (T@"
+  0x080088E1: "FAp'F F"
+  0x080088EE: "p\)]@"
+  0x0800891F: "Ml`/ "
+  0x0800892D: "$/ la"
+  0x080089B9: "&0CiF"
+  0x08008A1B: "C/`/h'C/`R"
+  0x08008A54: "!x0yJ"
+  0x08008A5E: "xT x"
+  0x08008A66: "!p:T x"
+  0x08008A8E: " x1y@"
+  0x08008AB4: "@!hF"
+  0x08008B1F: " [E]: miio ble flash register fail" <<<
+  0x08008B50: "[D]: miio ble flash register succ" <<<
+  0x08008C09: " pGp""
+  0x08008C4D: " pGp""
+  0x08008C9B: "!4Tt"
+  0x08008CA6: "KHAiI"
+  0x08008CAE: "!i@i"
+  0x08008CBA: "`i!i@"
+  0x08008CC2: "HC!i"
+  0x08008D00: "4HAiI"
+  0x08008D08: "!i@i"
+  0x08008D14: "`i!i@"
+  0x08008D1C: "AC i"
+  0x08008D40: "$HAiI"
+  0x08008D48: "!i@i"
+  0x08008D54: "`i!i@"
+  0x08008D9F: "HAiI"
+  0x08008DA6: "!i@i"
+  0x08008DB2: "`i!i@"
+  0x08008DBA: "HC!i"
+  0x08008E22: "$"JC"
+  0x08008E28: "khrh"
+  0x08008E32: "r`)b8a"
+  0x08008E48: "$&NC7"
+  0x08008E54: "$&NC6"
+  0x08008E5E: "w`k`)b$!JC"
+  0x08008E87: "F$&qCI"
+  0x08008E9E: "$ CCX"
+  0x08008EA5: "j a@"
+  0x08008EB3: "#ca`q$ ACH"
+  0x08008EBE: "$#AhZC"
+  0x08008ECE: "$"PC@"
+  0x08008EE7: "L%ih"
+  0x08008EF1: "&@hai@"
+  0x08008EFE: "$ EC"
+  0x08008FAB: "&0CiF"
+  0x0800901D: "CB`pG"
+  0x0800903C: "Jp#{"
+  0x08009057: "%Mp!|"
+  0x080090F7: "`Ah@x"
+  0x0800911D: "")F8F"
+  0x080091A6: "iF x"
+  0x080091E4: "N3M-Ninebot-Mini0001" <<<
+  0x08009201: "[Ofm}"
+  0x08009208: "ow|9^yq"
+  0x08009282: "+;4x"
+  0x080092C8: "Register succ,new token, encrypt sn, beaconkey. new token:%02x %02x"
+
+======================================================================
+  PROTOCOL HANDLER ANALYSIS: BLE_1.1.0
+======================================================================
+  Found 7 candidate protocol handler regions
+
+  --- Candidate at offset 0x0004CA (0x080014CA) ---
+    0x080014BA: uxth     r0, r0
+    0x080014BC: cmp      r3, r0
+    0x080014BE: bne      #0x8001530
+    0x080014C0: ldr      r1, [pc, #0xb4]
+    0x080014C2: movs     r0, #0
+    0x080014C4: bl       #0x8002790
+    0x080014C8: b        #0x800153a
+    0x080014CA: movs     r0, #0x5a <<< HEADER BYTE 1 (0x5A)
+    0x080014CC: strb     r0, [r1]
+    0x080014CE: movs     r0, #0xa5 <<< HEADER BYTE 2 (0xA5)
+    0x080014D0: strb     r0, [r1, #1]
+    0x080014D2: ldrb     r0, [r4, #7]
+    0x080014D4: cmp      r0, #0
+    0x080014D6: beq      #0x80014e2
+    0x080014D8: cmp      r0, #1
+    0x080014DA: beq      #0x8001514
+    0x080014DC: cmp      r0, #2
+    0x080014DE: bne      #0x80014f8
+    0x080014E0: b        #0x8001518
+    0x080014E2: adds     r0, r1, r2
+    0x080014E4: subs     r0, #0x20
+    0x080014E6: ldrb     r1, [r0, #0x1f]
+    0x080014E8: cmp      r1, #0
+    0x080014EA: bne      #0x80014f8
+    0x080014EC: ldrb     r0, [r0, #0x1e]
+    0x080014EE: cmp      r0, #0
+    0x080014F0: bne      #0x80014f8
+    0x080014F2: ldr      r0, [pc, #0x8c]
+    0x080014F4: bl       #0x80048e4
+    0x080014F8: ldr      r3, [pc, #0x78]
+
+  --- Candidate at offset 0x00054C (0x0800154C) ---
+    0x0800153C: strb     r5, [r4, #3]
+    0x0800153E: strb     r5, [r4, #5]
+    0x08001540: b        #0x800156e
+    0x08001542: b        #0x800154a
+    0x08001544: adds     r0, r6, r0
+    0x08001546: strh     r0, [r4, #8]
+    0x08001548: pop      {r3, r4, r5, r6, r7, pc}
+    0x0800154A: ldr      r1, [pc, #0x28]
+    0x0800154C: cmp      r0, #0x5a <<< HEADER BYTE 1 (0x5A)
+    0x0800154E: ldrb     r1, [r1, #3]
+    0x08001550: beq      #0x8001558
+    0x08001552: cmp      r0, #0xa5 <<< HEADER BYTE 2 (0xA5)
+    0x08001554: beq      #0x8001560
+    0x08001556: b        #0x800156c
+    0x08001558: cmp      r1, #0
+    0x0800155A: bne      #0x800156c
+    0x0800155C: strb     r7, [r4, #3]
+    0x0800155E: pop      {r3, r4, r5, r6, r7, pc}
+    0x08001560: cmp      r1, #0
+    0x08001562: beq      #0x800156c
+    0x08001564: ldr      r0, [pc, #0x14]
+    0x08001566: strb     r7, [r4, #4]
+    0x08001568: strb     r7, [r0, #0x16]
+    0x0800156A: b        #0x800156e
+    0x0800156C: strb     r5, [r4, #3]
+    0x0800156E: strh     r5, [r4, #8]
+    0x08001570: pop      {r3, r4, r5, r6, r7, pc}
+    0x08001572: movs     r0, r0
+    0x08001574: movs     r1, #0xb0
+    0x08001576: movs     r0, #0
+    0x08001578: adds     r0, #0xd8
+    0x0800157A: movs     r0, #0
+
+  --- Candidate at offset 0x000938 (0x08001938) ---
+    0x08001928: mov      r0, sp
+    0x0800192A: ldr      r4, [sp, #0xc4]
+    0x0800192C: mov      r5, r1
+    0x0800192E: strb     r6, [r0]
+    0x08001930: movs     r1, #0x98
+    0x08001932: add      r0, sp, #4
+    0x08001934: bl       #0x8001212
+    0x08001938: movs     r0, #0x5a <<< HEADER BYTE 1 (0x5A)
+    0x0800193A: strb     r0, [r4]
+    0x0800193C: movs     r0, #0xa5 <<< HEADER BYTE 2 (0xA5)
+    0x0800193E: strb     r0, [r4, #1]
+    0x08001940: strb     r5, [r4, #2]
+    0x08001942: ldr      r0, [pc, #0x50]
+    0x08001944: strb     r7, [r4, #3]
+    0x08001946: ldrb     r0, [r0, #1]
+    0x08001948: strb     r0, [r4, #4]
+    0x0800194A: ldr      r0, [sp, #0xa4]
+    0x0800194C: strb     r0, [r4, #5]
+    0x0800194E: ldr      r0, [sp, #0xa8]
+    0x08001950: strb     r0, [r4, #6]
+    0x08001952: mov      r0, sp
+    0x08001954: movs     r1, #7
+    0x08001956: strb     r6, [r0]
+    0x08001958: b        #0x8001970
+    0x0800195A: mov      r2, sp
+    0x0800195C: ldrb     r2, [r2]
+    0x0800195E: ldr      r0, [sp, #0xc0]
+    0x08001960: ldrb     r0, [r0, r2]
+    0x08001962: strb     r0, [r4, r1]
+    0x08001964: mov      r2, sp
+    0x08001966: adds     r1, r1, #1
+
+  --- Candidate at offset 0x000C64 (0x08001C64) ---
+    0x08001C54: movs     r2, #0xfb
+    0x08001C56: ands     r1, r2
+    0x08001C58: strb     r1, [r4]
+    0x08001C5A: pop      {r4, r5, r6, pc}
+    0x08001C5C: movs     r1, #0xbc
+    0x08001C5E: movs     r0, #0
+    0x08001C60: push     {r4, r5, r6, r7, lr}
+    0x08001C62: ldr      r4, [sp, #0x1c]
+    0x08001C64: movs     r7, #0x5a <<< HEADER BYTE 1 (0x5A)
+    0x08001C66: ldr      r6, [sp, #0x14]
+    0x08001C68: strb     r7, [r4]
+    0x08001C6A: movs     r7, #0xa5 <<< HEADER BYTE 2 (0xA5)
+    0x08001C6C: mov      r5, r0
+    0x08001C6E: strb     r7, [r4, #1]
+    0x08001C70: strb     r2, [r4, #2]
+    0x08001C72: strb     r5, [r4, #3]
+    0x08001C74: strb     r1, [r4, #4]
+    0x08001C76: movs     r0, #0
+    0x08001C78: strb     r3, [r4, #5]
+    0x08001C7A: strb     r6, [r4, #6]
+    0x08001C7C: movs     r5, #7
+    0x08001C7E: b        #0x8001c8e
+    0x08001C80: ldr      r1, [sp, #0x18]
+    0x08001C82: ldrb     r1, [r1, r0]
+    0x08001C84: strb     r1, [r4, r5]
+    0x08001C86: adds     r5, r5, #1
+    0x08001C88: adds     r0, r0, #1
+    0x08001C8A: uxtb     r5, r5
+    0x08001C8C: uxtb     r0, r0
+    0x08001C8E: cmp      r0, r2
+    0x08001C90: blo      #0x8001c80
+    0x08001C92: subs     r0, r5, #2
+
+  --- Candidate at offset 0x001EB2 (0x08002EB2) ---
+    0x08002EA2: bne      #0x8002e9e
+    0x08002EA4: str      r5, [r2, #0x1c]
+    0x08002EA6: adds     r0, r0, #1
+    0x08002EA8: movs     r2, #0xa
+    0x08002EAA: str      r0, [r4, #0x18]
+    0x08002EAC: ldrsh    r2, [r4, r2]
+    0x08002EAE: movs     r3, #0xff
+    0x08002EB0: adds     r3, #5
+    0x08002EB2: muls     r2, r3, r2
+    0x08002EB4: ldr      r1, [r1, r2]
+    0x08002EB6: cmp      r1, r0
+    0x08002EB8: bgt      #0x8002eda
+    0x08002EBA: str      r5, [r4, #0x18]
+    0x08002EBC: strb     r5, [r6, #0xc]
+    0x08002EBE: ldrh     r0, [r4, #0xa]
+    0x08002EC0: adds     r0, r0, #1
+    0x08002EC2: strh     r0, [r4, #0xa]
+    0x08002EC4: ldrh     r0, [r4, #0xa]
+    0x08002EC6: cmp      r0, #5
+    0x08002EC8: bne      #0x8002ecc
+    0x08002ECA: strh     r5, [r4, #0xa]
+    0x08002ECC: movs     r0, #0xe
+    0x08002ECE: ldrsh    r0, [r4, r0]
+    0x08002ED0: cmp      r0, #4
+    0x08002ED2: bge      #0x8002eda
+    0x08002ED4: ldrh     r0, [r4, #0xe]
+    0x08002ED6: adds     r0, r0, #1
+    0x08002ED8: strh     r0, [r4, #0xe]
+    0x08002EDA: strb     r5, [r4, #2]
+    0x08002EDC: pop      {r4, r5, r6, pc}
+    0x08002EDE: movs     r0, r0
+    0x08002EE0: movs     r1, #0x5c
+
+======================================================================
+  USART INTERRUPT HANDLER DISASSEMBLY: BLE_1.1.0
+======================================================================
+
+  USART1: Handler at 0xBF001E40 (outside firmware range)
+
+  USART2: Handler at 0xBF00BF00 (outside firmware range)
+
+  USART3: Handler at 0xBF00BF00 (outside firmware range)
+
+######################################################################
+######################################################################
+##  FIRMWARE ANALYSIS: BLE_1.1.7
+##  File: C:\Users\Layer\Documents\Ninebot-G30-Custom\BLE-Dashboard\firmware\BLE_1.1.7.bin
+######################################################################
+######################################################################
+
+  File size: 34252 bytes (33.4 KB)
+  Base address: 0x08001000
+  End address:  0x080095CC
+  MD5:    6bc084786b5dc0dab599e74ca2035897
+  SHA256: dd2b70c81ddd4c84488f3bddaa402daca6c49a9cf28149a9448673efb56390d3
+
+======================================================================
+  VECTOR TABLE ANALYSIS: BLE_1.1.7
+======================================================================
+
+  --- UART Interrupt Handlers ---
+  USART1: 0xBF001E40 -> active (protocol handler likely here)
+  USART2: 0xBF00BF00 -> active (protocol handler likely here)
+  USART3: 0xBF00BF00 -> active (protocol handler likely here)
+
+======================================================================
+  PROTOCOL HEADER SEARCH (0x5A 0xA5): BLE_1.1.7
+======================================================================
+  Found 0 occurrences of 0x5A 0xA5
+
+======================================================================
+  PROTOCOL CONSTANT SEARCH: BLE_1.1.7
+======================================================================
+  0x5A (Protocol header byte 1 (0x5A)): 23 raw occurrences
+  0xA5 (Protocol header byte 2 (0xA5)): 26 raw occurrences
+  0x20 (ESC address (0x20)): 1279 raw occurrences
+  0x21 (BLE address (0x21)): 585 raw occurrences
+  0x22 (BMS address (0x22)): 401 raw occurrences
+  0x3E (App address (0x3E)): 23 raw occurrences
+  0x3F (PC address (0x3F)): 22 raw occurrences
+
+======================================================================
+  CHECKSUM PATTERN SEARCH (XOR 0xFFFF): BLE_1.1.7
+======================================================================
+  0xFFFF (16-bit LE): 48 occurrences
+    Offset 0x002B3C (0x08003B3C): 00 20 FF FF 00 00 00 ED
+    Offset 0x003270 (0x08004270): 00 00 FF FF FF FF FF FF
+    Offset 0x003271 (0x08004271): 00 FF FF FF FF FF FF FF
+    Offset 0x003272 (0x08004272): FF FF FF FF FF FF FF FF
+    Offset 0x003273 (0x08004273): FF FF FF FF FF FF FF FF
+    Offset 0x003274 (0x08004274): FF FF FF FF FF FF FF FF
+    Offset 0x003275 (0x08004275): FF FF FF FF FF FF FF FF
+    Offset 0x003276 (0x08004276): FF FF FF FF FF FF FF FF
+    Offset 0x003277 (0x08004277): FF FF FF FF FF FF FF FF
+    Offset 0x003278 (0x08004278): FF FF FF FF FF FF FF FF
+  0x0000FFFF (32-bit LE): 8 occurrences
+    Offset 0x002B3C (0x08003B3C): 00 20 FF FF 00 00 00 ED
+    Offset 0x003468 (0x08004468): 00 20 FF FF 00 00 1C B5
+    Offset 0x0038DC (0x080048DC): 00 00 FF FF 00 00 F8 B5
+    Offset 0x003970 (0x08004970): 00 20 FF FF 00 00 0C 21
+    Offset 0x003FE0 (0x08004FE0): 02 00 FF FF 00 00 FC 33
+    Offset 0x004478 (0x08005478): 00 00 FF FF 00 00 02 30
+    Offset 0x006B58 (0x08007B58): 00 20 FF FF 00 00 7C B5
+    Offset 0x0082A8 (0x080092A8): 00 20 FF FF 00 00 E0 33
+
+======================================================================
+  STM32 PERIPHERAL REGISTER REFERENCES: BLE_1.1.7
+======================================================================
+
+  --- AFIO ---
+  AFIO_EVCR           :  1 refs at 0x00721C
+
+  --- TIM2 ---
+  TIM2_CR1            :  1 refs at 0x00658D
+
+======================================================================
+  BAUD RATE CONFIGURATION SEARCH: BLE_1.1.7
+======================================================================
+  BRR=0x0271 (115200 baud (USART1 @ 72MHz PCLK2)): 5 at 0x000485, 0x001E5F, 0x002147, 0x004A89, 0x007BC9
+  BRR=0x0139 (115200 baud (USART2/3 @ 36MHz PCLK1)): 1 at 0x0085C0
+  BRR=0x0138 (115200 baud (USART2/3 @ 36MHz PCLK1, alt)): 2 at 0x0018FF, 0x0019CB
+  BRR=0x1388 (9600 baud (USART1 @ 72MHz)): 1 at 0x003C7D
+
+======================================================================
+  STRING EXTRACTION: BLE_1.1.7
+======================================================================
+
+  Total strings found (>=4 chars): 554
+
+  --- All extracted strings ---
+  0x080012AE: ")F2F"
+  0x0800145E: "byDI"
+  0x0800148E: "by7NR"
+  0x080015D7: "I`C@"
+  0x080016B6: ",M,N"
+  0x08001741: " `w'w"
+  0x08001831: "FlF#p#x"
+  0x080018A5: "tpGD "
+  0x080018D5: "spG\'"
+  0x0800197B: "&hF1"
+  0x0800198C: "Z  p"
+  0x08001999: "p@x q)"
+  0x080019B5: "\`TjFI"
+  0x08001A1F: "r9K:H"
+  0x08001A63: "@(IHq@ "
+  0x08001A80: "$K!J"
+  0x08001A85: "\0CPpX\ C"
+  0x08001AC5: "JFpQ\!C"
+  0x08001AEF: "pX\(C"
+  0x08001AFD: "pQ\)C"
+  0x08001B1B: "HAzI"
+  0x08001BAC: ")i@i"
+  0x08001BB8: "hi)i"
+  0x08001BC5: "1H` Fp"
+  0x08001C7D: "&1C!p"
+  0x08001C93: "@!pp"
+  0x08001CBF: "\aUm"
+  0x08001CF7: "F(OE"
+  0x08001CFD: " yhpCE"
+  0x08001D2B: "i)h`@"
+  0x08001D34: ""FB@"
+  0x08001D6F: "Chh"@"
+  0x08001E6D: " (`)"
+  0x08001EE6: "! iFHs"
+  0x08001FF0: "Z@Jq"
+  0x08001FFF: "H2F)F"
+  0x08002010: "xO8i"
+  0x08002039: " xqmH"
+  0x08002066: "cO8i"
+  0x08002090: "\H2Fi"
+  0x080020AE: "8i2F"
+  0x080020B4: "SHWI"
+  0x08002106: ";HAiBi"
+  0x0800216D: "h$IJ`"
+  0x08002330: " x%F"
+  0x08002344: "hhd("
+  0x0800234A: "e h`"
+  0x08002357: " h` xp"
+  0x0800238E: "2 `u"
+  0x080023F6: "@%*C"
+  0x080023FD: "%*@bq"
+  0x0800240F: "%(C@"
+  0x08002423: "!(@@"
+  0x0800244B: "CrM`q"
+  0x08002453: "(`y%"
+  0x08002460: "(x*F"
+  0x08002470: "'pgp"
+  0x08002477: "pgq'q"
+  0x08002556: "&q'p"
+  0x0800256B: "\ pP\"
+  0x08002593: " $.(+"
+  0x080025E2: " y0C"
+  0x080025E8: " y(C q"
+  0x080025EF: "H!x"0"
+  0x080025F5: "paxAp"
+  0x08002605: "qayAq"
+  0x080027F3: "I FHC"
+  0x0800281B: "x!(}"
+  0x08002827: "`axA`"
+  0x0800285E: "`x ("
+  0x080028BD: "">!! "
+  0x08002901: "psIa#"
+  0x08002907: "xBpJx"
+  0x08002922: " !! "
+  0x08002941: "x`xQ"
+  0x08002961: "8P)~"
+  0x080029A0: " y"x"
+  0x080029C4: ".v=H"
+  0x080029CF: "!Ap?I"
+  0x080029E5: "" !> "
+  0x08002A18: "\#>!! "
+  0x08002A36: "]#>!"
+  0x08002A7B: "H 8@"
+  0x08002AA4: "nunt!F8F"
+  0x08002B1D: "!ACI"
+  0x08002C6A: "hF.i"
+  0x08002D42: "B`pG"
+  0x08002E03: "sA{I"
+  0x08002E17: "tC|["
+  0x08002E4D: "|JpB|"
+  0x08002E8B: "  ^0\"
+  0x08002EEA: " N1{"
+  0x08002F45: "a5s`"
+  0x08002F86: "pG`!"
+  0x0800308E: "aFpF"
+  0x0800309D: "2QCpP"
+  0x080031E9: "]M]l@"
+  0x0800322B: "Fc]["
+  0x08003242: "pGpG"
+  0x08003296: "(x*("
+  0x080032AB: "#ZC0:"
+  0x080032D4: "(x.("
+  0x080032DD: "Chxm"
+  0x080032F1: ""QC09@"
+  0x08003306: "(xl("
+  0x080033BC: "8xiF"
+  0x080034B0: "+!jF"
+  0x0800352C: "@!jF"
+  0x0800353C: "0!jF"
+  0x08003560: "0!jF"
+  0x08003654: "0123456789abcdef"
+  0x08003668: "0123456789ABCDEF"
+  0x0800368C: "9F  "
+  0x0800376A: " pzT!x"
+  0x08003774: " pzT x"
+  0x08003788: " pph"
+  0x08003791: "!AV"x"
+  0x080037B1: "T xbFC"
+  0x08003836: ""F0F"
+  0x08003853: "&0!hF"
+  0x08003900: "Y!hF"
+  0x0800395E: ":F!FhF"
+  0x08003A59: "` Fp"
+  0x08003A79: "p1I/NHh"
+  0x08003AB9: "%hF6"
+  0x08003AC4: "#xax"
+  0x08003ADA: "fxax"
+  0x08003B02: "AQqF"
+  0x08003B10: ":FFC"
+  0x08003BC4: "$&^C"
+  0x08003BDB: "&\C.Ud"
+  0x08003C20: "$#CC"
+  0x08003C30: "$ GC"
+  0x08003C47: "#.F^C"
+  0x08003C55: "pX`0"
+  0x08003C8C: "`hxa"
+  0x08003CC2: "!F$#YCS\"
+  0x08003CF9: "ID`Ih"
+  0x08003D3E: "$!aC@\"
+  0x08003D53: "hiF0"
+  0x08003DC8: "[E]: flash operation error, opcode:%d" <<<
+  0x08003DF0: "psm callback"
+  0x08003E03: " [D]: update succ. len = %d" <<<
+  0x08003E24: "[D]: load succ, len = %d"
+  0x08003E40: "[D]: store succ. len = %d"
+  0x08003E5C: "[D]: clear succ. len = %d"
+  0x08003EA5: "4%p@"
+  0x08003EF2: "#F$3"
+  0x08003F16: "#F$3"
+  0x08003F3C: "#F$3"
+  0x08003F62: "#F$3"
+  0x08003F88: "#F$3"
+  0x08003FAE: "#F$3"
+  0x08004047: "x0Fr"
+  0x08004061: "&&p)h"
+  0x080040B4: ")FIh"
+  0x0800417C: "AI h"
+  0x08004222: "*O*I"
+  0x08004297: " [E]: Mi Serivce Init fail, error code=%d" <<<
+  0x08004300: "Scooter_G30_SAT" <<<
+  0x08004371: "u!FhFc"
+  0x0800437C: "!xhF"
+  0x08004392: ")F F"
+  0x0800439E: ")F F"
+  0x0800449D: "X!FhF"
+  0x08004534: "hF@z"
+  0x0800453E: "hFAr@z"
+  0x08004549: "0iFHr"
+  0x080045C8: "1xhF"
+  0x080045CD: "sqxAs"
+  0x08004639: " ZCT"
+  0x0800463E: "6I"y&i"
+  0x0800477F: "'}C-"
+  0x08004787: " hqja"
+  0x080047A7: " axI"
+  0x080047C2: "$"QC"
+  0x080047CD: "ILhGi"
+  0x080047E9: "J@:P`"
+  0x080048A7: "" pjT x"
+  0x080048B2: "!p*T xA"
+  0x0800499D: "`A`pG"
+  0x080049AF: "F !hF"
+  0x080049C1: "")FhF"
+  0x080049DA: " !hF"
+  0x08004A0D: "!A`pG"
+  0x08004A17: " pGpG"
+  0x08004A23: "xjF#H"
+  0x08004A33: "! OHC"
+  0x08004A79: "X!FhF"
+  0x08004AA5: "I49A"
+  0x08004B7A: "T!hF"
+  0x08004BE2: "iFHy"
+  0x08004BF7: "@iFHq"
+  0x08004C44: "*!hF"
+  0x08004C79: "qHq("
+  0x08004DC9: "I@9@"
+  0x08004E05: " CCsH"
+  0x08004E35: "#ZCjK"
+  0x08004ECD: "FkCDM["
+  0x08004EEB: ""PC=M"
+  0x08004EFF: "!HC@"
+  0x08004F0D: "!JC1I@9Q"
+  0x08004F19: "!HC1I@"
+  0x08004F53: "!HC I$9@"
+  0x0800503A: "T!hF"
+  0x0800505B: ">0p x"
+  0x0800514A: "@ iF"
+  0x08005183: "!@80"
+  0x08005193: "!$=p"
+  0x080051A0: "@ iF"
+  0x080051D8: "0!hF"
+  0x0800528B: " 0pp"
+  0x080052E8: "$!YC"
+  0x08005351: ""hF|"
+  0x08005359: "$,`l`"
+  0x0800537C: ",`l`"
+  0x08005383: ""1F(F"
+  0x080053AC: "NBScooter0001"
+  0x080053D9: "FLC$I"
+  0x080053DF: ""PCa"
+  0x08005417: "4;FrF)F"
+  0x08005464: "rF)F"
+  0x0800548B: "MPC@"
+  0x0800549D: ""QCI"
+  0x080054C1: "'HC"N;F"
+  0x080054D9: "!HCt"
+  0x08005519: "N'PhF"
+  0x08005528: "B`hxHC"
+  0x0800565E: "P\b("
+  0x080056AD: " `Cqhd"
+  0x080056CD: "J@h$!"
+  0x080056E8: "$'xC"
+  0x08005746: "2J$ "
+  0x0800574B: "h`C!F"
+  0x08005759: "!ACjh@"
+  0x0800576C: "/p(KQh$ "
+  0x080057BC: "rFcF"
+  0x080057EA: "(xix"
+  0x08005883: "#H"H9"
+  0x080058DD: "rL!ArA!"
+  0x080058ED: "s_"BsN""
+  0x080058FB: "tE!At !"
+  0x0800592F: "rhFD"
+  0x08005A68: "kHAy"
+  0x08005ABC: "%(+.147"
+  0x08005AF0: "Ap4`t`"
+  0x08005B3B: " (sh"
+  0x08005B47: "#iFGH"
+  0x08005B4F: "xJsBx"
+  0x08005B5F: "yJt@y"
+  0x08005B9E: " !! "
+  0x08005BC8: "aaoozz"
+  0x08005BE1: "F)9')"
+  0x08005BEF: "FQ9')"
+  0x08005BFD: "Fy9')3"
+  0x08005C6D: "8'(1"
+  0x08005C7D: " pqh"
+  0x08005C90: "(9')"
+  0x08005C96: "(9')"
+  0x08005C9C: "y8'("
+  0x08005CAC: "(9')"
+  0x08005CB2: "Q8'("
+  0x08005CC2: ")8'("
+  0x08005D80: "!p2T x"
+  0x08005DA8: " x)y@"
+  0x08005E59: "C0F 0"
+  0x08005E72: "0F$0"
+  0x08005E86: "0F(0"
+  0x08005E9A: "0F,0"
+  0x08005EAE: "0F00"
+  0x08005EBF: "C0F40"
+  0x08005ED3: "C0F80"
+  0x08005EE7: "C0F<0"
+  0x08005F0F: "AcF{@"
+  0x08005F3F: "@bFV@"
+  0x08005F5D: "F^@sF"
+  0x08005F81: "AsFS@"
+  0x08005F8A: ";@S@"
+  0x08005FA9: "AcFwF{@"
+  0x08005FB3: "@sF_@"
+  0x08005FD6: "_@7@_@"
+  0x08006015: "AbFvFr@"
+  0x08006044: "S@;@S@"
+  0x08006064: ";Fw@"
+  0x0800608E: "^@>@^@"
+  0x080060B0: "gFW@rF"
+  0x080060DC: "z@2@z@"
+  0x080060FE: "sF^@"
+  0x08006105: "@sF^@"
+  0x0800614A: "Z@:@Z@"
+  0x0800616E: "W@~@"
+  0x0800617C: "bFW@"
+  0x08006183: "@bFW@"
+  0x080061AA: "r@Q@"
+  0x080061D0: "TIbDW"
+  0x080061E8: "Q@O@"
+  0x080061FB: "@Y@y"
+  0x08006226: "z@Q@"
+  0x08006236: "r@:@r@"
+  0x08006260: "{@Y@"
+  0x08006270: "K@qFK@"
+  0x0800629C: "q@O@"
+  0x080062AC: "Q@y@q"
+  0x080062D0: "r@i@Q@bF"
+  0x08006319: "AwFy@"
+  0x08006350: "fFQ@O@:F"
+  0x08006360: "q@vFq@y"
+  0x0800638E: "q@J@"
+  0x0800639A: "O@aFO@"
+  0x080063C0: "~@q@"
+  0x080063FC: "y@N@"
+  0x08006430: "Q@o@y@"
+  0x0800643F: "AgFqFy@"
+  0x0800646E: "G@y@"
+  0x0800647C: "q@vFq@"
+  0x080064A6: "i@O@1F"
+  0x080064B6: "fFo@w@"
+  0x080064DE: "F@q@"
+  0x080064EA: "~@F@"
+  0x0800651A: "wF}@"
+  0x08006540: "h@W@G@"
+  0x08006550: "p@vFp@("
+  0x0800657A: "y@A@"
+  0x0800658A: "E@u@x"
+  0x080065B0: "i@H@=F"
+  0x080065BC: "q@fFq@i"
+  0x080065E8: "=FX@A@pF"
+  0x0800661E: "H@E@"
+  0x08006627: "ApFx@X@"
+  0x08006651: "FY@H@"
+  0x08006660: "h@x@"
+  0x08006684: "cFA@"
+  0x0800668C: "P@A@"
+  0x08006696: "h@uFh@"
+  0x080066BC: "fFH@"
+  0x080066F6: "Q@H@"
+  0x08006700: "(C9F"
+  0x08006732: "h@A@"
+  0x0800673C: "qF=C9@"
+  0x08006774: "H@E@"
+  0x0800677F: "F)C(@9@"
+  0x080067B2: "Q@M@"
+  0x080067F0: "j@Q@"
+  0x080067FC: ")C*@"
+  0x08006830: "i@J@"
+  0x080068A2: "h@Y@A@"
+  0x080068B4: ")@8@"
+  0x080068E6: "H@E@"
+  0x080068F1: "@uF)C"
+  0x0800691E: "`FH@"
+  0x08006928: "i@H@"
+  0x08006968: "E@i@"
+  0x080069AC: "H@F@"
+  0x080069B4: "(@)C"
+  0x080069EA: "7Ci@H@"
+  0x080069F4: "1@/@"
+  0x08006A20: "Q@X@A@"
+  0x08006A60: "wFh@F@"
+  0x08006A6A: "pF0C"
+  0x08006A70: "7@(@"
+  0x08006AA2: "X@E@"
+  0x08006AAC: "8C=@0@"
+  0x08006AE8: "X@F@"
+  0x08006AF0: "(C+@8@"
+  0x08006B28: "X@F@"
+  0x08006B66: "k@X@"
+  0x08006B77: "@+F3C"
+  0x08006BA2: "u@S@]@"
+  0x08006BD8: "vFn@"
+  0x08006BE0: "gFo@~@"
+  0x08006C17: "FM@V@u@"
+  0x08006C2C: "n@~@"
+  0x08006C50: "u@fFr@U@"
+  0x08006C92: "j@V@"
+  0x08006CCC: "u@j@"
+  0x08006CDE: "gFU@u"
+  0x08006D3E: "U@F@n@"
+  0x08006D50: "r@j@"
+  0x08006D79: "Fu@j@"
+  0x08006D8C: "W@w@"
+  0x08006DB7: ""n@w@"
+  0x08006DC8: "}@U@r"
+  0x08006DEE: "V@M@n@"
+  0x08006E2A: "j@q@J@"
+  0x08006E3A: "q@i@y"
+  0x08006E60: "vFn@"
+  0x08006E6C: "w@Q@"
+  0x08006E73: ""q@i"
+  0x08006E93: "FV@i@N@"
+  0x08006EA4: "}@U@I"
+  0x08006ECA: "vFz@u@j@"
+  0x08006EE0: "U@}@I"
+  0x08006F14: "F@i@"
+  0x08006F1D: "Ai@w@P"
+  0x08006F52: "B@J@"
+  0x08006F76: "eFz@u@j@uF"
+  0x08006F8A: "Q@A@i"
+  0x08006FB0: "uFV@w@"
+  0x08006FDA: "gFV@"
+  0x08006FE0: "z@V@"
+  0x08006FF0: "n@V@"
+  0x0800703F: "hbhH"
+  0x0800707A: "#I F"
+  0x08007087: ""iF F"
+  0x080070C4: "(r i"
+  0x080070DA: "(s`i"
+  0x08007142: "2F9FhF"
+  0x08007150: ")FhF"
+  0x080071A0: "(h@!"
+  0x080071F4: "@0@<"
+  0x08007229: "i,"Ki!I"
+  0x0800728F: " [W]: flash write func not setting" <<<
+  0x080072B7: " psm retrive succ, "
+  0x080072DB: " retrive token, %02x %02x"
+  0x080072F8: "[E]: flash read error" <<<
+  0x0800736B: " [W]: flash write func not setting" <<<
+  0x0800739F: " flash write succ" <<<
+  0x080073B4: "[E]: flash write fail" <<<
+  0x0800755F: " decrypted auth, %x"
+  0x0800757C: "cloud bind succ"
+  0x08007597: " mi_service, bond succ"
+  0x080075B4: "cloud bind fail"
+  0x080075D7: " Register succ,new token, encrypt sn, beaconkey."
+  0x08007667: " [E]: SN timeout, clear token"
+  0x08007688: "[W]: Weak SN timeout."
+  0x0800783B: " mi_service, waiting SN"
+  0x08007858: "WEAK dev bind succ"
+  0x08007893: " app bond fail"
+  0x080078A4: "app bond succ"
+  0x080078BF: "F9FhFF"
+  0x080078CA: "#F2F)FhF"
+  0x080078F8: "jF!F"
+  0x080079E3: " login cfm handler, token: %02x %02x"
+  0x08007A13: " decrypted %x"
+  0x08007A28: "login cfm succ"
+  0x08007A4B: " login cfm fail"
+  0x08007A67: "xhFF"
+  0x08007A6F: "xApQy"
+  0x08007A7F: "yAqQy"
+  0x08007A95: "#*F!F"
+  0x08007AAB: "xhFF"
+  0x08007AB3: "xApQy"
+  0x08007AC3: "xAqQy"
+  0x08007AD9: "#*F!F"
+  0x08007B78: "jF!F"
+  0x08007BFB: " sn: "
+  0x08007C04: "%02x"
+  0x08007C24: "2F)FhF"
+  0x08007C68: "Enter state machine"
+  0x08007DCA: "oF9q2"
+  0x08007DF4: "KIIh"
+  0x08007F5F: ""!F(F"
+  0x08007F8A: "iFJq"
+  0x08007FF0: "7F:F"
+  0x0800802B: "  p`p"
+  0x08008039: "p q6"
+  0x080080A5: "y qhF"
+  0x080081A3: "$hF6"
+  0x080081F9: "`pG5FRn"
+  0x08008245: "``h}!"
+  0x08008252: "h`!z"
+  0x0800835F: " On Connected"
+  0x08008404: "On Token Written, "
+  0x0800841F: " On Auth Written, "
+  0x08008437: " SN Arrived"
+  0x0800844F: "IhCD"
+  0x080084D6: "@heC("
+  0x080084EF: " Q`p"
+  0x08008524: "@hQC"
+  0x08008538: "!h`h"
+  0x08008564: "3F!F"
+  0x08008589: "p.F0F"
+  0x080085A4: "1i@i"
+  0x080085B0: "pi1i"
+  0x080085E1: "!!p`pp"
+  0x08008626: "IhBCQ"
+  0x0800866C: "`h2F"
+  0x08008711: " pG ""
+  0x08008760: ";F*F!F"
+  0x080087B2: ".HAiI"
+  0x080087BA: ")i@i"
+  0x080087CE: "hi)i@"
+  0x080087D6: "HC#K"
+  0x080087DD: "hqCK"
+  0x0800881C: "u`#h"
+  0x080088A4: "IhBCQ"
+  0x080088E8: "+F:F!F"
+  0x08008920: "4F%x"
+  0x080089EB: " hCA"
+  0x08008A0B: "xZCQ"
+  0x08008A5C: "IhBCQ"
+  0x08008AA0: "+F:F!F"
+  0x08008ACB: "78x@"
+  0x08008AD2: "8pyx"\"
+  0x08008AE6: "8xyx \a\@"
+  0x08008AF4: "I] \A@"
+  0x08008B0F: " (T@"
+  0x08008B21: "FAp'F F"
+  0x08008B2E: "p\)]@"
+  0x08008B5F: "Ml`/ "
+  0x08008B6D: "$/ la"
+  0x08008BF9: "&0CiF"
+  0x08008C5B: "C/`/h'C/`R"
+  0x08008C94: "!x0yJ"
+  0x08008C9E: "xT x"
+  0x08008CA6: "!p:T x"
+  0x08008CCE: " x1y@"
+  0x08008CF4: "@!hF"
+  0x08008D15: "H88A"
+  0x08008D5F: " [E]: miio ble flash register fail" <<<
+  0x08008D90: "[D]: miio ble flash register succ" <<<
+  0x08008EBF: "!4Tt"
+  0x08008ECA: "KHAiI"
+  0x08008ED2: "!i@i"
+  0x08008EDE: "`i!i@"
+  0x08008EE6: "HC!i"
+  0x08008F24: "4HAiI"
+  0x08008F2C: "!i@i"
+  0x08008F38: "`i!i@"
+  0x08008F40: "AC i"
+  0x08008F64: "$HAiI"
+  0x08008F6C: "!i@i"
+  0x08008F78: "`i!i@"
+  0x08008FC3: "HAiI"
+  0x08008FCA: "!i@i"
+  0x08008FD6: "`i!i@"
+  0x08008FDE: "HC!i"
+  0x08009046: "$"JC"
+  0x0800904C: "khrh"
+  0x08009056: "r`)b8a"
+  0x0800906C: "$&NC7"
+  0x08009078: "$&NC6"
+  0x08009082: "w`k`)b$!JC"
+  0x080090AB: "F$&qCI"
+  0x080090C2: "$ CCX"
+  0x080090C9: "j a@"
+  0x080090D7: "#ca`q$ ACH"
+  0x080090E2: "$#AhZC"
+  0x080090F2: "$"PC@"
+  0x0800910B: "L%ih"
+  0x08009115: "&@hai@"
+  0x08009122: "$ EC"
+  0x080091CF: "&0CiF"
+  0x08009241: "CB`pG"
+  0x08009260: "Jp#{"
+  0x0800927B: "%Mp!|"
+  0x0800931B: "`Ah@x"
+  0x08009341: "")F8F"
+  0x080093CA: "iF x"
+  0x08009454: "N3M-Ninebot-Mini0001" <<<
+  0x08009471: "[Ofm}"
+  0x08009478: "ow|9^yq"
+  0x080094FE: "+;4x"
+  0x08009544: "Register succ,new token, encrypt sn, beaconkey. new token:%02x %02x"
+
+======================================================================
+  PROTOCOL HANDLER ANALYSIS: BLE_1.1.7
+======================================================================
+  Found 7 candidate protocol handler regions
+
+  --- Candidate at offset 0x0004CC (0x080014CC) ---
+    0x080014BC: uxth     r0, r0
+    0x080014BE: cmp      r3, r0
+    0x080014C0: bne      #0x8001532
+    0x080014C2: ldr      r1, [pc, #0xb0]
+    0x080014C4: movs     r0, #0
+    0x080014C6: bl       #0x8002804
+    0x080014CA: b        #0x800153c
+    0x080014CC: movs     r0, #0x5a <<< HEADER BYTE 1 (0x5A)
+    0x080014CE: strb     r0, [r1]
+    0x080014D0: movs     r0, #0xa5 <<< HEADER BYTE 2 (0xA5)
+    0x080014D2: strb     r0, [r1, #1]
+    0x080014D4: ldrb     r0, [r4, #7]
+    0x080014D6: cmp      r0, #0
+    0x080014D8: beq      #0x80014e4
+    0x080014DA: cmp      r0, #1
+    0x080014DC: beq      #0x8001516
+    0x080014DE: cmp      r0, #2
+    0x080014E0: bne      #0x80014fa
+    0x080014E2: b        #0x800151a
+    0x080014E4: adds     r0, r1, r2
+    0x080014E6: subs     r0, #0x20
+    0x080014E8: ldrb     r1, [r0, #0x1f]
+    0x080014EA: cmp      r1, #0
+    0x080014EC: bne      #0x80014fa
+    0x080014EE: ldrb     r0, [r0, #0x1e]
+    0x080014F0: cmp      r0, #0
+    0x080014F2: bne      #0x80014fa
+    0x080014F4: ldr      r0, [pc, #0x84]
+    0x080014F6: bl       #0x80049a8
+    0x080014FA: ldr      r3, [pc, #0x74]
+
+  --- Candidate at offset 0x00054E (0x0800154E) ---
+    0x0800153E: strb     r5, [r4, #3]
+    0x08001540: strb     r5, [r4, #5]
+    0x08001542: b        #0x8001562
+    0x08001544: b        #0x800154c
+    0x08001546: adds     r0, r6, r0
+    0x08001548: strh     r0, [r4, #8]
+    0x0800154A: pop      {r3, r4, r5, r6, r7, pc}
+    0x0800154C: ldr      r1, [pc, #0x20]
+    0x0800154E: cmp      r0, #0x5a <<< HEADER BYTE 1 (0x5A)
+    0x08001550: ldrb     r1, [r1, #3]
+    0x08001552: beq      #0x8001566
+    0x08001554: cmp      r0, #0xa5 <<< HEADER BYTE 2 (0xA5)
+    0x08001556: bne      #0x800147c
+    0x08001558: cmp      r1, #0
+    0x0800155A: beq      #0x800147c
+    0x0800155C: ldr      r0, [pc, #0x18]
+    0x0800155E: strb     r7, [r4, #4]
+    0x08001560: strb     r7, [r0, #0x16]
+    0x08001562: strh     r5, [r4, #8]
+    0x08001564: pop      {r3, r4, r5, r6, r7, pc}
+    0x08001566: cmp      r1, #0
+    0x08001568: bne      #0x800147c
+    0x0800156A: strb     r7, [r4, #3]
+    0x0800156C: pop      {r3, r4, r5, r6, r7, pc}
+    0x0800156E: movs     r0, r0
+    0x08001570: movs     r1, #0xb4
+    0x08001572: movs     r0, #0
+    0x08001574: adds     r0, #0xe8
+    0x08001576: movs     r0, #0
+    0x08001578: movs     r7, #0x5c
+    0x0800157A: movs     r0, #0
+    0x0800157C: movs     r3, #0x38
+
+  --- Candidate at offset 0x00098C (0x0800198C) ---
+    0x0800197C: mov      r0, sp
+    0x0800197E: ldr      r4, [sp, #0xc4]
+    0x08001980: mov      r5, r1
+    0x08001982: strb     r6, [r0]
+    0x08001984: movs     r1, #0x98
+    0x08001986: add      r0, sp, #4
+    0x08001988: bl       #0x8001212
+    0x0800198C: movs     r0, #0x5a <<< HEADER BYTE 1 (0x5A)
+    0x0800198E: strb     r0, [r4]
+    0x08001990: movs     r0, #0xa5 <<< HEADER BYTE 2 (0xA5)
+    0x08001992: strb     r0, [r4, #1]
+    0x08001994: strb     r5, [r4, #2]
+    0x08001996: ldr      r0, [pc, #0x50]
+    0x08001998: strb     r7, [r4, #3]
+    0x0800199A: ldrb     r0, [r0, #1]
+    0x0800199C: strb     r0, [r4, #4]
+    0x0800199E: ldr      r0, [sp, #0xa4]
+    0x080019A0: strb     r0, [r4, #5]
+    0x080019A2: ldr      r0, [sp, #0xa8]
+    0x080019A4: strb     r0, [r4, #6]
+    0x080019A6: mov      r0, sp
+    0x080019A8: movs     r1, #7
+    0x080019AA: strb     r6, [r0]
+    0x080019AC: b        #0x80019c4
+    0x080019AE: mov      r2, sp
+    0x080019B0: ldrb     r2, [r2]
+    0x080019B2: ldr      r0, [sp, #0xc0]
+    0x080019B4: ldrb     r0, [r0, r2]
+    0x080019B6: strb     r0, [r4, r1]
+    0x080019B8: mov      r2, sp
+    0x080019BA: adds     r1, r1, #1
+
+  --- Candidate at offset 0x000CA0 (0x08001CA0) ---
+    0x08001C90: movs     r2, #0xfb
+    0x08001C92: ands     r1, r2
+    0x08001C94: strb     r1, [r4]
+    0x08001C96: pop      {r4, r5, r6, pc}
+    0x08001C98: movs     r1, #0xc0
+    0x08001C9A: movs     r0, #0
+    0x08001C9C: push     {r4, r5, r6, r7, lr}
+    0x08001C9E: ldr      r4, [sp, #0x1c]
+    0x08001CA0: movs     r7, #0x5a <<< HEADER BYTE 1 (0x5A)
+    0x08001CA2: ldr      r6, [sp, #0x14]
+    0x08001CA4: strb     r7, [r4]
+    0x08001CA6: movs     r7, #0xa5 <<< HEADER BYTE 2 (0xA5)
+    0x08001CA8: mov      r5, r0
+    0x08001CAA: strb     r7, [r4, #1]
+    0x08001CAC: strb     r2, [r4, #2]
+    0x08001CAE: strb     r5, [r4, #3]
+    0x08001CB0: strb     r1, [r4, #4]
+    0x08001CB2: movs     r0, #0
+    0x08001CB4: strb     r3, [r4, #5]
+    0x08001CB6: strb     r6, [r4, #6]
+    0x08001CB8: movs     r5, #7
+    0x08001CBA: b        #0x8001cca
+    0x08001CBC: ldr      r1, [sp, #0x18]
+    0x08001CBE: ldrb     r1, [r1, r0]
+    0x08001CC0: strb     r1, [r4, r5]
+    0x08001CC2: adds     r5, r5, #1
+    0x08001CC4: adds     r0, r0, #1
+    0x08001CC6: uxtb     r5, r5
+    0x08001CC8: uxtb     r0, r0
+    0x08001CCA: cmp      r0, r2
+    0x08001CCC: blo      #0x8001cbc
+    0x08001CCE: subs     r0, r5, #2
+
+  --- Candidate at offset 0x001F3C (0x08002F3C) ---
+    0x08002F2C: strh     r5, [r4, #0x10]
+    0x08002F2E: str      r5, [r2, #0x1c]
+    0x08002F30: adds     r0, r0, #1
+    0x08002F32: movs     r2, #0xa
+    0x08002F34: str      r0, [r4, #0x18]
+    0x08002F36: ldrsh    r2, [r4, r2]
+    0x08002F38: movs     r3, #0xff
+    0x08002F3A: adds     r3, #5
+    0x08002F3C: muls     r2, r3, r2
+    0x08002F3E: ldr      r1, [r1, r2]
+    0x08002F40: cmp      r1, r0
+    0x08002F42: bgt      #0x8002f64
+    0x08002F44: str      r5, [r4, #0x18]
+    0x08002F46: strb     r5, [r6, #0xc]
+    0x08002F48: ldrh     r0, [r4, #0xa]
+    0x08002F4A: adds     r0, r0, #1
+    0x08002F4C: strh     r0, [r4, #0xa]
+    0x08002F4E: ldrh     r0, [r4, #0xa]
+    0x08002F50: cmp      r0, #5
+    0x08002F52: bne      #0x8002f56
+    0x08002F54: strh     r5, [r4, #0xa]
+    0x08002F56: movs     r0, #0xe
+    0x08002F58: ldrsh    r0, [r4, r0]
+    0x08002F5A: cmp      r0, #4
+    0x08002F5C: bge      #0x8002f64
+    0x08002F5E: ldrh     r0, [r4, #0xe]
+    0x08002F60: adds     r0, r0, #1
+    0x08002F62: strh     r0, [r4, #0xe]
+    0x08002F64: strb     r5, [r4, #2]
+    0x08002F66: pop      {r4, r5, r6, pc}
+    0x08002F68: movs     r1, #0x60
+    0x08002F6A: movs     r0, #0
+
+======================================================================
+  USART INTERRUPT HANDLER DISASSEMBLY: BLE_1.1.7
+======================================================================
+
+  USART1: Handler at 0xBF001E40 (outside firmware range)
+
+  USART2: Handler at 0xBF00BF00 (outside firmware range)
+
+  USART3: Handler at 0xBF00BF00 (outside firmware range)
+
+######################################################################
+######################################################################
+##  FIRMWARE ANALYSIS: BMS_1.3.4
+##  File: C:\Users\Layer\Documents\Ninebot-G30-Custom\BMS-BatteryManagement\firmware\BMS_1.3.4.bin
+######################################################################
+######################################################################
+
+  File size: 13956 bytes (13.6 KB)
+  Base address: 0x08001000
+  End address:  0x08004684
+  MD5:    4f24269e50bfbf302a54c22cca446dd2
+  SHA256: 5632f9bb8ef3cf2954ed217ff44830d8b7b81d9e6c459da3700bdec0eb8098b5
+
+======================================================================
+  VECTOR TABLE ANALYSIS: BMS_1.3.4
+======================================================================
+
+  --- UART Interrupt Handlers ---
+  USART1: 0x4EC5CD02 -> active (protocol handler likely here)
+  USART2: 0x90CD5C96 -> active (protocol handler likely here)
+  USART3: 0x90046B80 -> active (protocol handler likely here)
+
+======================================================================
+  PROTOCOL HEADER SEARCH (0x5A 0xA5): BMS_1.3.4
+======================================================================
+  Found 0 occurrences of 0x5A 0xA5
+
+======================================================================
+  PROTOCOL CONSTANT SEARCH: BMS_1.3.4
+======================================================================
+  0x5A (Protocol header byte 1 (0x5A)): 65 raw occurrences
+  0xA5 (Protocol header byte 2 (0xA5)): 182 raw occurrences
+  0x20 (ESC address (0x20)): 196 raw occurrences
+  0x21 (BLE address (0x21)): 14 raw occurrences
+  0x22 (BMS address (0x22)): 8 raw occurrences
+  0x3E (App address (0x3E)): 10 raw occurrences
+  0x3F (PC address (0x3F)): 80 raw occurrences
+
+======================================================================
+  CHECKSUM PATTERN SEARCH (XOR 0xFFFF): BMS_1.3.4
+======================================================================
+  0xFFFF (16-bit LE): 9 occurrences
+    Offset 0x0003A4 (0x080013A4): 99 71 FF FF FF 9C BE 08
+    Offset 0x0003A5 (0x080013A5): 71 FF FF FF 9C BE 08 CD
+    Offset 0x0006DF (0x080016DF): 98 34 FF FF FF FC CD A5
+    Offset 0x0006E0 (0x080016E0): 34 FF FF FF FC CD A5 4D
+    Offset 0x000EBD (0x08001EBD): 98 34 FF FF FF FB AE 04
+    Offset 0x000EBE (0x08001EBE): 34 FF FF FF FB AE 04 E9
+    Offset 0x001698 (0x08002698): 98 34 FF FF F1 F0 AE 04
+    Offset 0x001DAD (0x08002DAD): 98 34 FF FF EF F2 CC A5
+    Offset 0x0034DC (0x080044DC): 98 34 FF FF F5 42 81 CD
+  0x0000FFFF (32-bit LE): 0 occurrences
+
+======================================================================
+  STM32 PERIPHERAL REGISTER REFERENCES: BMS_1.3.4
+======================================================================
+
+======================================================================
+  BAUD RATE CONFIGURATION SEARCH: BMS_1.3.4
+======================================================================
+  BRR=0x0139 (115200 baud (USART2/3 @ 36MHz PCLK1)): 1 at 0x00095A
+  BRR=0x0138 (115200 baud (USART2/3 @ 36MHz PCLK1, alt)): 1 at 0x00052B
+
+======================================================================
+  STRING EXTRACTION: BMS_1.3.4
+======================================================================
+
+  Total strings found (>=4 chars): 27
+
+  --- All extracted strings ---
+  0x080014F3: "J'QJ&"
+  0x08001779: "&V W"
+  0x08001ABC: "'er\"
+  0x08001BF9: "J'9_"
+  0x08001C45: "@.)_"
+  0x08001CA6: "M&@5"
+  0x08002251: "ZZ&4"
+  0x08002821: "%qr_"
+  0x080028C6: "i%F5"
+  0x080029F4: "u%`U"
+  0x08002B50: "(/br_"
+  0x08002D24: "-/)5"
+  0x08002FFD: "AZM'"
+  0x0800302C: "d }r\"
+  0x08003751: "aJ/?"
+  0x080038E6: "\\J&"
+  0x08003B9B: "Z'  "
+  0x08003BF5: "XXXXXXXXXX"
+  0x08003C00: "TTTTTTT"
+  0x08003E6B: "QI_Zr"
+  0x08003E9D: "\\QZ"
+  0x0800406C: "\\QZ"
+  0x080040EA: "5VPR5"
+  0x080040F9: "PS5VPS"
+  0x0800414E: "XXX]'"
+  0x080043EE: "r_PpHH"
+  0x080044C0: "QY5SQY"
+
+======================================================================
+  PROTOCOL HANDLER ANALYSIS: BMS_1.3.4
+======================================================================
+  Found 13 candidate protocol handler regions
+
+  --- Candidate at offset 0x000CBF (0x08001CBF) ---
+    0x08001CAF: strh     r5, [r4, #4]
+    0x08001CB1: lsls     r7, r4, #0x14
+    0x08001CB3: ldr      r4, [sp, #0x334]
+    0x08001CB5: movs     r0, #0xf7
+    0x08001CB7: ldm      r5!, {r0, r1}
+    0x08001CB9: ldc2     p2, c12, [ip, #0x334]
+    0x08001CBD: bls.w    #0x7f2fe0b
+    0x08001CC1: lsls     r6, r4, #0x1c
+    0x08001CC3: ldrh     r0, [r2, r2]
+
+  --- Candidate at offset 0x000D1E (0x08001D1E) ---
+    0x08001D0E: adds     r5, #0x2f
+    0x08001D10: movs     r0, r1
+
+  --- Candidate at offset 0x000D99 (0x08001D99) ---
+
+  --- Candidate at offset 0x000DF5 (0x08001DF5) ---
+    0x08001DE5: lsls     r7, r7, #0xa
+    0x08001DE7: itte     hs
+    0x08001DE9: lslhs    r5, r6, #4
+    0x08001DEB: lslhs    r0, r0, #4
+    0x08001DED: movs     r7, r7
+    0x08001DEF: lsls     r6, r7, #0x1a
+    0x08001DF1: cbnz     r2, #0x8001e51
+    0x08001DF3: lsrs     r0, r0, #0x20
+    0x08001DF5: b.w      #0x765c793
+    0x08001DF9: ldm      r4, {r0, r3, r4, r7}
+    0x08001DFB: push     {r0, r2, r5, r7, lr}
+    0x08001DFD: ldrh     r0, [r2, r2]
+    0x08001DFF: bgt      #0x8001e51
+    0x08001E01: stm      r6!, {r5}
+    0x08001E03: stm      r5!, {r0, r2, r3, r6, r7}
+    0x08001E05: add      r6, sp, #0x170
+
+  --- Candidate at offset 0x002213 (0x08003213) ---
+    0x08003203: cmp      r5, r0
+    0x08003205: lsls     r1, r0, #0x18
+    0x08003207: lsls     r5, r0, #9
+    0x08003209: cmp      r7, r0
+    0x0800320B: lsrs     r3, r0, #0x20
+    0x0800320D: lsls     r7, r7, #0xa
+    0x0800320F: hint     #9
+    0x08003211: adr      r6, #0
+    0x08003213: str      r2, [sp, #0x168]
+    0x08003215: lsls     r7, r0, #3
+    0x08003217: lsls     r6, r7, #2
+    0x08003219: adr      r6, #0x170
+
+======================================================================
+  USART INTERRUPT HANDLER DISASSEMBLY: BMS_1.3.4
+======================================================================
+
+  USART1: Handler at 0x4EC5CD02 (outside firmware range)
+
+  USART2: Handler at 0x90CD5C96 (outside firmware range)
+
+  USART3: Handler at 0x90046B80 (outside firmware range)
+
+######################################################################
+######################################################################
+##  FIRMWARE ANALYSIS: BMS_1.7.4.5
+##  File: C:\Users\Layer\Documents\Ninebot-G30-Custom\BMS-BatteryManagement\firmware\BMS_1.7.4.5.bin
+######################################################################
+######################################################################
+
+  File size: 23596 bytes (23.0 KB)
+  Base address: 0x08001000
+  End address:  0x08006C2C
+  MD5:    d1ea31b0eaf2b070b62452472f70ca66
+  SHA256: d7486a6f6236f115cf12c33e52117d6a50fda4724df26b98e13a7537ad1da9e1
+
+======================================================================
+  VECTOR TABLE ANALYSIS: BMS_1.7.4.5
+======================================================================
+  [  1] Reset Handler        = 0x080010D8 (Thumb)
+  [ 15] SysTick Handler      = 0x080059E8 (Thumb)
+  [ 27] DMA1_Ch1             = 0x08002D78 (Thumb)
+  [ 28] DMA1_Ch2             = 0x08001274 (Thumb)
+  [ 29] DMA1_Ch3             = 0x080010EA (Thumb)
+  [ 41] TIM1_UP              = 0x080010EA (Thumb)
+  [ 43] TIM1_CC              = 0x08005C08 (Thumb)
+
+  --- UART Interrupt Handlers ---
+  USART1: 0x200017C8 -> active (protocol handler likely here)
+  USART2: 0x47804804 -> active (protocol handler likely here)
+  USART3: 0x47004804 -> active (protocol handler likely here)
+
+======================================================================
+  PROTOCOL HEADER SEARCH (0x5A 0xA5): BMS_1.7.4.5
+======================================================================
+  Found 0 occurrences of 0x5A 0xA5
+
+======================================================================
+  PROTOCOL CONSTANT SEARCH: BMS_1.7.4.5
+======================================================================
+  0x5A (Protocol header byte 1 (0x5A)): 30 raw occurrences
+  0xA5 (Protocol header byte 2 (0xA5)): 12 raw occurrences
+  0x20 (ESC address (0x20)): 896 raw occurrences
+  0x21 (BLE address (0x21)): 350 raw occurrences
+  0x22 (BMS address (0x22)): 194 raw occurrences
+  0x3E (App address (0x3E)): 9 raw occurrences
+  0x3F (PC address (0x3F)): 23 raw occurrences
+
+======================================================================
+  CHECKSUM PATTERN SEARCH (XOR 0xFFFF): BMS_1.7.4.5
+======================================================================
+  0xFFFF (16-bit LE): 19 occurrences
+    Offset 0x0002AD (0x080012AD): 40 E8 FF FF 7F 04 49 7D
+    Offset 0x000A46 (0x08001A46): E0 FC FF FF F0 B5 20 49
+    Offset 0x000C0E (0x08001C0E): A8 E4 FF FF F0 B5 1E 24
+    Offset 0x0010D1 (0x080020D1): 40 E8 FF FF 7F 94 01 00
+    Offset 0x0011D4 (0x080021D4): F7 E7 FF FF 00 00 98 01
+    Offset 0x0012DA (0x080022DA): B4 FB FF FF 00 04 00 50
+    Offset 0x0014A1 (0x080024A1): F7 9F FF FF F7 19 FD 28
+    Offset 0x0016A2 (0x080026A2): B4 FC FF FF 7C B5 00 20
+    Offset 0x001A7A (0x08002A7A): 4A FC FF FF 00 03 00 20
+    Offset 0x002C00 (0x08003C00): 00 00 FF FF FE EF 8C 80
+  0x0000FFFF (32-bit LE): 5 occurrences
+    Offset 0x0011D4 (0x080021D4): F7 E7 FF FF 00 00 98 01
+    Offset 0x002D61 (0x08003D61): 00 FF FF FF 00 00 E0 00
+    Offset 0x005058 (0x08006058): 00 00 FF FF 00 00 00 05
+    Offset 0x005970 (0x08006970): 00 00 FF FF 00 00 03 00
+    Offset 0x00599F (0x0800699F): 00 00 FF FF 00 00 FF 00
+
+======================================================================
+  STM32 PERIPHERAL REGISTER REFERENCES: BMS_1.7.4.5
+======================================================================
+
+  --- FLASH ---
+  FLASH_ACR           : 12 refs at 0x001F74, 0x001F84, 0x001FA4, 0x00207C, 0x002438 (+7 more)
+
+  --- RCC ---
+  RCC_CR              : 14 refs at 0x001B6C, 0x00233C, 0x002BE4, 0x0037D0, 0x0037E8 (+9 more)
+
+  --- TIM1 ---
+  TIM1_CR1            :  6 refs at 0x003994, 0x0039FC, 0x003B60, 0x0044E4, 0x004574 (+1 more)
+
+  --- TIM2 ---
+  TIM2_CR1            :  1 refs at 0x0059F1
+
+  --- TIM3 ---
+  TIM3_CR1            :  1 refs at 0x003A00
+
+  --- USART1 ---
+  USART1_SR           :  4 refs at 0x003C44, 0x004C00, 0x004C18, 0x004C6C
+
+  --- USART2 ---
+  USART2_SR           :  1 refs at 0x003C48
+
+======================================================================
+  BAUD RATE CONFIGURATION SEARCH: BMS_1.7.4.5
+======================================================================
+  BRR=0x0271 (115200 baud (USART1 @ 72MHz PCLK2)): 1 at 0x0030E7
+  BRR=0x0139 (115200 baud (USART2/3 @ 36MHz PCLK1)): 2 at 0x00070D, 0x00369B
+  BRR=0x0138 (115200 baud (USART2/3 @ 36MHz PCLK1, alt)): 6 at 0x003655, 0x003C45, 0x004425, 0x004C01, 0x004C19, 0x004C6D
+  BRR=0x1388 (9600 baud (USART1 @ 72MHz)): 2 at 0x002824, 0x002BFC
+
+======================================================================
+  STRING EXTRACTION: BMS_1.7.4.5
+======================================================================
+
+  Total strings found (>=4 chars): 318
+
+  --- All extracted strings ---
+  0x080010FF: " G30_HD_HDPRO_VXX" <<<
+  0x080012F3: "VZ*'"
+  0x08001326: "(Fc0"
+  0x080013F9: "- JEz"
+  0x080014E2: "`mP!HC d"
+  0x080014ED: "!HC!l"
+  0x080014F4: " dd! l"
+  0x080014FE: " d l"
+  0x08001516: " LalAC n"
+  0x0800153B: "!HC0"
+  0x08001540: "ef f"
+  0x0800156A: "afald""
+  0x080015D3: "dilj"
+  0x080015FB: "R(y@"
+  0x08001600: "(q(y"
+  0x0800160F: "l2F`"
+  0x08001690: "JM+x"
+  0x08001698: "+xIN"
+  0x080016B7: "#BLCM"
+  0x080016C0: ">N7x"
+  0x08001704: ".I21"
+  0x0800170A: "1I]9"
+  0x08001837: "%%r)F(F"
+  0x08001842: ")F6 "
+  0x0800185C: " F@0"
+  0x0800188E: "9F0F"
+  0x080018B7: "!!r$I"
+  0x080018D0: "(F@0"
+  0x0800191E: "1C6 "
+  0x0800192D: "&7F1F"
+  0x080019F3: "Lcl%F:!i^"
+  0x08001AB2: "( Hu"
+  0x08001AE7: "f2#KrLlAN"
+  0x08001B23: "y3K6%]_"
+  0x08001B4C: "$i)O&"
+  0x08001B52: ",L<W"
+  0x08001B8D: "vLzd"
+  0x08001BBC: "$xMl"
+  0x08001BC3: "N8$<_"
+  0x08001C27: "%MW--"
+  0x08001C47: "%MW(-"
+  0x08001C6D: "%MWA-"
+  0x08001CB9: "|}O}M 7"
+  0x08001CD9: " (sh"
+  0x08001CF4: "(s2("
+  0x08001CFA: "2 (s"
+  0x08001D27: "s((%"
+  0x08001D51: " (shs"
+  0x08001DAD: "s@H@z"
+  0x08001DCE: "8IntHr5"
+  0x08001DEA: "5Id1"
+  0x08001E12: "(t+H"
+  0x08001F09: "IJlIl"
+  0x08001F6D: " hd F"
+  0x08001FD4: "iFHp"
+  0x08002013: "'(h@"
+  0x08002025: " (`(l"
+  0x0800209C: "hFAV"
+  0x080020EE: "iF0F"
+  0x080020FA: "jF0F"
+  0x080021CD: "!qqq"
+  0x08002208: "PC2""
+  0x08002222: "PCd"QC"
+  0x080022C0: "Hl}$"
+  0x08002364: "alHC}!"
+  0x0800238B: "m`e d l"
+  0x080023A9: "m`m("
+  0x080023D0: "2  ^"
+  0x0800244E: " M(x"
+  0x080025F7: "!!p8"
+  0x0800265E: "HC}!"
+  0x08002691: "IHCd!"
+  0x0800269A: "(` F8"
+  0x080026AD: "qFIQ "
+  0x080026BA: "iFP "
+  0x080026DD: "x:L@"
+  0x080026E7: "0n0`"
+  0x080027EE: "hF}&Ex"
+  0x08002854: " p(F|"
+  0x0800286A: "iFIx"
+  0x08002879: "x0p x"
+  0x080028BA: "iFIx"
+  0x080029E3: "^*!A^"
+  0x08002A2E: "29e)"
+  0x08002ACB: "Cicik"
+  0x08002AE2: "iF0F"
+  0x08002B13: "L p0i@"
+  0x08002B1C: " x8C p1i0FI"
+  0x08002B53: "0 p!xQ "
+  0x08002BC4: "iF'H"
+  0x08002D08: "JppGKx["
+  0x08002D12: "Kp2+"
+  0x08002D51: " HppG"
+  0x08002DB7: "xBXR"
+  0x08002DEC: "A`pG"
+  0x08002DFF: "y"XR"
+  0x08002F1C: "bFqF"
+  0x08002F25: "IHU`x@"
+  0x08002F2C: "`p`x"
+  0x08002F51: " HwpG"
+  0x08002F7F: "CAapG"
+  0x08002F9D: "CPapG"
+  0x08002FBA: "&F (S"
+  0x080030AF: "H2F@"
+  0x080030E8: "=H@}"
+  0x080030F0: ";H 0@y"
+  0x080030FA: ":M(^:L !a^"
+  0x08003109: " (^"!a^"
+  0x08003115: " (^$!a^"
+  0x08003121: " (^&!a^"
+  0x0800312D: " (^(!a^"
+  0x08003139: " (^*!a^"
+  0x08003159: " (^ !a^"
+  0x08003165: " (^"!a^"
+  0x08003171: " (^$!a^"
+  0x0800317D: " (^&!a^"
+  0x08003189: " (^(!a^"
+  0x08003195: " (^*!a^"
+  0x0800322D: " `S* "
+  0x08003239: "CT!`Rp"
+  0x08003265: "p"qcq"
+  0x08003275: "\aUm"
+  0x0800336D: "!Ap@xpG*"
+  0x080033CF: " h`} "
+  0x080033ED: "C9`th"
+  0x08003455: "H@ipG"
+  0x08003480: "A` h"
+  0x0800351D: "")F@"
+  0x0800352B: "$ Fp"
+  0x08003573: "a9H@8"
+  0x08003581: "k8L0@"
+  0x08003591: "`5H}!"
+  0x08003597: "heaHC@"
+  0x080035A4: " b F"
+  0x080035B3: " Hb!hS Hb h"
+  0x080035FF: "eua!h"
+  0x080036CB: "apG0"
+  0x080036F6: "IH@8"
+  0x08003790: ""H@8"
+  0x080037A2: "hiah"
+  0x080037AB: "Cha x@"
+  0x080037BF: "Cha "
+  0x080037C8: "hi!i"
+  0x0800382E: " x8'"
+  0x08003887: "C*`(h"
+  0x0800388D: "C(``h"
+  0x080038F7: "C(`(h"
+  0x08003937: "C(`(h"
+  0x08003B3A: "aj j"
+  0x08003B5B: "`(h0C(`"
+  0x08003BAC: "p!bj"
+  0x08003C2B: "  4`r"
+  0x08003C3E: "%F 5hz"
+  0x08003C4E: "`` F"
+  0x08003C57: " hr!h"
+  0x08003C5D: " Hb!hS Hb F"
+  0x08003C8B: "a!h i"
+  0x08003CBB: "C#j3C"
+  0x08003CCF: "!irp"
+  0x08003D19: "hS!Qb"
+  0x08003D2D: "!AbpG"
+  0x08003D71: "hS!Qb"
+  0x08003D85: "!AbpG"
+  0x08003DD1: "Ih`@"
+  0x08003DDB: " (php"
+  0x08003DE5: "`(aha"
+  0x08003E33: " hK1"
+  0x08003E3D: "\Jy@"
+  0x08003E56: "ha x"
+  0x08003E6A: " z/""
+  0x08003EC8: "0a x"
+  0x08003F05: "p9Nh"
+  0x08003F47: "phx(I"
+  0x08004006: ""O0F"
+  0x0800404C: "bDQ@d"
+  0x0800407D: "p4q "
+  0x080042F2: "iF0F"
+  0x08004332: "iF0F"
+  0x0800435A: "iF0F"
+  0x08004482: "4HB}4I"
+  0x080044A4: ".L!yI"
+  0x08004585: "N5@,C#C"
+  0x080045CD: "h5C,CMi"
+  0x080045D9: "hNi,C"
+  0x080045DF: "i5C,C"
+  0x08004609: "CBPpG"
+  0x08004621: "CBPpG"
+  0x08004729: "FSC]"
+  0x08004731: "C_C>C"
+  0x08004755: "F}C.C"
+  0x08004769: "jSCSC"
+  0x0800477F: "FZCZCZC"
+  0x0800478A: "MiCjjC"
+  0x08004793: "CCbd"
+  0x080047AB: "hAh*F"
+  0x080047C3: "CJcIk"
+  0x080047DB: "CJcIk"
+  0x080047F3: "CJcIk"
+  0x080049AB: "CLh"C"
+  0x08004A4D: "jDmDO<@"
+  0x08004A88: "5CE`De"
+  0x08004AC3: "C'O<@"
+  0x08004ADF: "CWh?"
+  0x08004B00: "5CE`"
+  0x08004B1F: "h<Co"
+  0x08004B4C: ".CF`De"
+  0x08004B7D: "'8@\"
+  0x08004B8F: "C!h+J"
+  0x08004C7D: ""(IhF"
+  0x08004C86: "&ImF"
+  0x08004D38: "9Fer 1"
+  0x08004D7E: "ep z@"
+  0x08004DD1: ""#IhF"
+  0x08004DDA: "!InF"
+  0x08004EDB: "!@8Bk"
+  0x08004EE1: "CBc@k"
+  0x08004F6B: "`!iI"
+  0x08004F72: "!a!i"
+  0x08004F90: "!`ai"
+  0x08004F99: "Caaah"
+  0x08004F9F: "Ca``h"
+  0x08005048: "iF(F"
+  0x080050A4: "0!hF"
+  0x080050D3: "glOkN:x"
+  0x080050E5: "P8x1X"
+  0x080050F5: "C1P9xpX ""
+  0x080050FF: "CpP9xpX@""
+  0x08005109: "CpP9xpX"
+  0x08005115: "CpP9xpX"
+  0x08005125: "CpP9xpX"
+  0x08005161: "`8F$0"
+  0x08005171: "h9F-1"
+  0x080051A3: "h:F-2"
+  0x080051B1: "`hhp!"
+  0x080051B7: "Ch`hh"
+  0x080051FF: "H@8Ak"
+  0x08005207: "CAc@k"
+  0x08005218: "BXp#"
+  0x08005257: "Cidih"
+  0x0800525F: "Ci`)j"
+  0x0800526D: "CrP)h"
+  0x080052D1: " @9IkMJ"
+  0x080052D9: "C@:QcQk"
+  0x0800531A: ">I2 "
+  0x08005327: "g<M;L(y!X;J"
+  0x08005333: "@!P)y"
+  0x08005343: "C`P)ybX  "
+  0x0800534F: "CbP(y!X"
+  0x08005357: "C!P)y`X"
+  0x0800535F: "C0C`P)y`X"
+  0x0800536D: "C`P)y`X"
+  0x08005377: "C`P+y)I*J"
+  0x08005387: "C0@#N"
+  0x08005489: "i*CR"
+  0x080054CE: "+CC`"
+  0x0800550E: "4C &"
+  0x0800551B: "CMh-"
+  0x0800553C: "*C@%"
+  0x0800555E: "+CC`"
+  0x0800559B: "h4Cn"
+  0x080055A9: "CMh-"
+  0x080055F0: "+CC`"
+  0x08005679: "#bx`y"!V"
+  0x08005682: " y)("
+  0x080056A3: "%)I(F 1"
+  0x08005729: "xbx"!"
+  0x08005757: " pG|"
+  0x0800585D: "%}r h"
+  0x0800597E: "HppG"
+  0x08005995: "apG?"
+  0x08005A04: "-L@4"j"
+  0x08005A0D: "C"b"j"
+  0x08005AAE: "`a`i"
+  0x08005B41: "H!i@\"
+  0x08005B4E: " a i"
+  0x08005C21: "h@%(C"
+  0x08005C81: "y"H@#"
+  0x08005CFF: "J`!PR"
+  0x08005D16: "ILIM"x FIK@xB*"
+  0x08005D26: "HI6*$"
+  0x08005D2D: "&2*$"
+  0x08005D71: "p6I3"
+  0x08005DF1: "!08HC"
+  0x08005E34: "@!PRp"
+  0x08005EA1: "F |g|"
+  0x08005EBF: ""!F`F"
+  0x08005ED2: "HC#I"
+  0x08005F00: "`C1F"
+  0x08005F11: "!iV2 "
+  0x08005F3C: "d!> "
+  0x08005F76: ",!0H"
+  0x08005F82: "/I/H"
+  0x08005F93: "!i^-H,F"
+  0x08005FD8: "b v!hR"
+  0x08005FDF: " z!hR*F "
+  0x08006012: "d ~!PR"
+  0x0800610C: "pGpG"
+  0x0800618B: "Fd9d)"
+  0x080061A6: "0 0^"
+  0x080061AC: "HC)F"
+  0x080061DA: "@j$!HC}!"
+  0x0800622A: "AC8F"
+  0x0800623F: "aaj@"
+  0x08006277: "F[x(-"
+  0x08006315: "%e_!I"
+  0x080064EC: "`i0C`a"
+  0x080064FE: "`i8C`a"
+  0x0800653A: "+Cca"
+  0x08006590: "`i(C`a"
+  0x080065EC: "0C`a"
+  0x080066FA: "0C`a"
+  0x08006740: "@BpG"
+  0x08006760: ")L |"
+  0x08006AA3: "%,CLa"
+  0x08006AC4: "*Cba"
+  0x08006B69: "CJaIi"
+  0x08006BC1: "CJa'p"
+  0x08006C08: "P9ACV20ENC0001"
+
+======================================================================
+  PROTOCOL HANDLER ANALYSIS: BMS_1.7.4.5
+======================================================================
+  Found 2 candidate protocol handler regions
+
+  --- Candidate at offset 0x001EBA (0x08002EBA) ---
+    0x08002EAA: strb     r5, [r4, #9]
+    0x08002EAC: b        #0x8002ec8
+    0x08002EAE: adds     r0, r3, r0
+    0x08002EB0: strh     r0, [r4, #0xc]
+    0x08002EB2: pop      {r4, r5, r6, pc}
+    0x08002EB4: ldr      r1, [pc, #0x1c]
+    0x08002EB6: movs     r2, #1
+    0x08002EB8: ldrb     r1, [r1, #7]
+    0x08002EBA: cmp      r0, #0x5a <<< HEADER BYTE 1 (0x5A)
+    0x08002EBC: beq      #0x8002ecc
+    0x08002EBE: cmp      r0, #0xa5 <<< HEADER BYTE 2 (0xA5)
+    0x08002EC0: bne      #0x8002e6e
+    0x08002EC2: cmp      r1, #0
+    0x08002EC4: beq      #0x8002e6e
+    0x08002EC6: strb     r2, [r4, #8]
+    0x08002EC8: strh     r5, [r4, #0xc]
+    0x08002ECA: pop      {r4, r5, r6, pc}
+    0x08002ECC: cmp      r1, #0
+    0x08002ECE: bne      #0x8002e6e
+    0x08002ED0: strb     r2, [r4, #7]
+    0x08002ED2: pop      {r4, r5, r6, pc}
+    0x08002ED4: lsls     r0, r1, #9
+    0x08002ED6: movs     r0, #0
+    0x08002ED8: lsrs     r0, r2, #0x1b
+    0x08002EDA: movs     r0, #0
+    0x08002EDC: push     {r1, r2, r3, r4, r5, r6, r7, lr}
+    0x08002EDE: ldr      r4, [pc, #0x60]
+    0x08002EE0: mov      ip, r2
+    0x08002EE2: mov      lr, r1
+    0x08002EE4: ldrb     r5, [r4, #3]
+    0x08002EE6: ldr      r2, [sp, #0x20]
+    0x08002EE8: ldr      r1, [sp, #0x24]
+
+  --- Candidate at offset 0x002256 (0x08003256) ---
+    0x08003246: push     {r4, lr}
+    0x08003248: mov      r1, r0
+    0x0800324A: mov      r0, r3
+    0x0800324C: bl       #0x8001194
+    0x08003250: pop      {r4, pc}
+    0x08003252: push     {r4, r5, r6, r7, lr}
+    0x08003254: ldr      r4, [sp, #0x1c]
+    0x08003256: movs     r7, #0x5a <<< HEADER BYTE 1 (0x5A)
+    0x08003258: ldr      r5, [sp, #0x14]
+    0x0800325A: strb     r7, [r4]
+    0x0800325C: mov      r6, r0
+    0x0800325E: movs     r7, #0xa5 <<< HEADER BYTE 2 (0xA5)
+    0x08003260: strb     r7, [r4, #1]
+    0x08003262: strb     r6, [r4, #2]
+    0x08003264: strb     r1, [r4, #3]
+    0x08003266: strb     r2, [r4, #4]
+    0x08003268: strb     r3, [r4, #5]
+    0x0800326A: movs     r0, #0
+    0x0800326C: strb     r5, [r4, #6]
+    0x0800326E: movs     r5, #7
+    0x08003270: b        #0x8003280
+    0x08003272: ldr      r1, [sp, #0x18]
+    0x08003274: ldrb     r1, [r1, r0]
+    0x08003276: strb     r1, [r4, r5]
+    0x08003278: adds     r5, r5, #1
+    0x0800327A: adds     r0, r0, #1
+    0x0800327C: uxtb     r5, r5
+    0x0800327E: uxtb     r0, r0
+    0x08003280: cmp      r0, r6
+    0x08003282: blo      #0x8003272
+    0x08003284: subs     r0, r5, #2
+
+======================================================================
+  USART INTERRUPT HANDLER DISASSEMBLY: BMS_1.7.4.5
+======================================================================
+
+  USART1: Handler at 0x200017C8 (outside firmware range)
+
+  USART2: Handler at 0x47804804 (outside firmware range)
+
+  USART3: Handler at 0x47004804 (outside firmware range)
+
+######################################################################
+  PROTOCOL VERIFICATION SUMMARY
+######################################################################
+
+  Documented Protocol Specification vs Firmware Evidence:
+  
+  ÔöîÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔö¼ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔö¼ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÉ
+  Ôöé Protocol Feature                Ôöé Status   Ôöé Evidence                    Ôöé
+  Ôö£ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔö╝ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔö╝ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöñ
+  Ôöé Header: 0x5A 0xA5              Ôöé See logs Ôöé Binary search for 5A A5     Ôöé
+  Ôöé UART @ 115200 8N1              Ôöé See logs Ôöé BRR register values         Ôöé
+  Ôöé Checksum: sum XOR 0xFFFF       Ôöé See logs Ôöé 0xFFFF constant presence    Ôöé
+  Ôöé Addresses: 0x20/0x21/0x22      Ôöé See logs Ôöé Byte constant search        Ôöé
+  Ôöé USART peripheral usage         Ôöé See logs Ôöé Register address references Ôöé
+  Ôöé I2C for BMS AFE                Ôöé See logs Ôöé I2C register references     Ôöé
+  Ôöé Cortex-M3 vector table         Ôöé See logs Ôöé Vector table analysis       Ôöé
+  ÔööÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔö┤ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔö┤ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÿ
+  
+  See individual firmware analysis sections above for detailed evidence.
+
+
+[Done] Analysis complete.
