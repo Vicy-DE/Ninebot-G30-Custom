@@ -2,9 +2,9 @@
 
 ## Project Overview
 
-This is a hardware documentation and firmware research project for the **Ninebot G30 Max** electric scooter. The project catalogs the scooter's three main PCBs (ESC, BLE, BMS), their microcontrollers, peripheral components, stock firmware binaries, datasheets, and communication protocol documentation.
+This is a **custom firmware development and reverse engineering project** for the **Ninebot G30 Max** electric scooter. The stock ESC motor controller is replaced with a **VESC** (Benjamin Vedder's ESC). The BLE dashboard and BMS battery boards retain their original hardware but receive custom firmware to provide the original feature set, expose the VESC App over BLE, and remove the speed cap.
 
-**This is NOT a software development project** — it is a structured knowledge base for reverse engineering, custom firmware development, and hardware modification of the Ninebot G30 Max.
+The project includes hardware documentation, datasheets, stock firmware dumps, a secure custom bootloader (ECDSA-P256 signed firmware), incrementally deployable custom firmware with a UART-based debug workflow, and a VESC Lisp project for the scooter's motor control script.
 
 ## Architecture
 
@@ -20,39 +20,43 @@ Phone App ←BLE→ [BLE Dashboard] ←UART→ [ESC Motor Controller] ←UART→
 
 | Board | Firmware ID | Main MCU | Flash | Purpose |
 |---|---|---|---|---|
-| ESC | DRV | STM32F103CBT6 (or GD32F103CBT6) | 128 KB | Motor control, central hub |
+| ESC | DRV | **VESC** (replaces stock) | — | Motor control (FOC) |
 | BLE | BLE | STM32F103C8T6 + nRF51822 | 64 KB + 256 KB | Display, throttle, Bluetooth |
-| BMS | BMS | STM32F103C8T6 + BQ76940 | 64 KB | Battery cell management |
+| BMS | BMS | STM32F103C8T6 + BQ76940 | 64 KB | Battery cell management (stock firmware) |
 
 ## Folder Structure
 
 ```
 Ninebot-G30-Custom/
 ├── README.md                          # Main project overview
+├── .github/
+│   ├── copilot-instructions.md        # Copilot context (this file)
+│   └── instructions/                  # Detailed workflow instructions
+│       ├── index.instructions.md      # Master workflow (mandatory 6-step)
+│       ├── BUILD/                     # Build guide (CMake, arm-none-eabi-gcc)
+│       ├── DEBUG/                     # Debug guide (UART, SWD, monitoring)
+│       ├── DEPLOYMENT/               # Deployment strategy (6 phases)
+│       ├── CODING/                   # Coding conventions (comments, scripts)
+│       ├── HARDWARE/                 # Hardware guide (datasheets, pinouts)
+│       └── documentation/            # Doc workflow (changelog, commit, etc.)
+├── Documentation/                     # Active development documentation
+│   ├── PROJECT_DOC.md                 # Living project documentation
+│   ├── CHANGE_LOG.md                  # Change history (newest first)
+│   ├── Requirements/                  # Feature requirements & traceability
+│   ├── ToDo/                          # Per-feature task tracking
+│   └── Tests/                         # Test reports
 ├── boards/                            # Per-board hardware documentation
 │   ├── ble-dashboard/                 # BLE dashboard board
-│   │   ├── README.md                  # BLE hardware documentation
-│   │   ├── PINOUT.md                  # Pin assignments
-│   │   ├── datasheets/                # Component datasheets (PDFs)
-│   │   └── firmware/                  # Stock firmware binaries (.bin)
 │   ├── bms-battery/                   # Battery management board
-│   │   ├── README.md                  # BMS hardware documentation
-│   │   ├── PINOUT.md
-│   │   ├── datasheets/
-│   │   └── firmware/
-│   └── esc-motor/                     # ESC motor controller board
-│       ├── README.md
-│       ├── PINOUT.md
-│       ├── datasheets/
-│       └── firmware/
+│   └── esc-motor/                     # ESC motor controller board (stock ref)
 ├── bootloader/                        # Custom secure bootloader (16 KB)
 │   ├── README.md                      # Architecture & concept doc
 │   ├── CMakeLists.txt                 # CMake cross-compilation build
-│   ├── cmake/                         # Toolchain files
+│   ├── cmake/                         # Toolchain files (Cortex-M3, Cortex-M0)
 │   ├── common/                        # Shared code (SHA-256, ECDSA, XMODEM, CRC-32)
 │   ├── stm32/                         # STM32F103 bootloader (BLE + BMS boards)
 │   └── nrf51/                         # nRF51822 bootloader
-├── docs/                              # Cross-cutting documentation
+├── docs/                              # Protocol & reverse engineering reference
 │   ├── protocol.md                    # Ninebot UART protocol reference
 │   ├── iap-update-protocol.md         # Stock IAP update protocol
 │   ├── firmware-flashing.md           # Flashing guide
@@ -61,11 +65,15 @@ Ninebot-G30-Custom/
 │   ├── signing/                       # Firmware signing (ECDSA-P256)
 │   ├── flasher/                       # Flash tools (IAP, XMODEM, initial flash)
 │   └── analysis/                      # Firmware analysis scripts
-├── firmware/                          # Firmware analysis & reconstruction
-│   ├── decompiled/                    # Decompiled/reconstructed firmware
+├── firmware/                          # Firmware source & reconstruction
+│   ├── decompiled/                    # Decompiled/reconstructed firmware (active dev)
 │   └── rebuild/                       # Firmware rebuild from disassembly
-└── lib/                               # Libraries
-    └── ninebot-protocol/              # Ninebot protocol C++ implementation
+├── vesc-lisp/                         # VESC Lisp scripts for motor control
+│   ├── README.md                      # VESC Lisp project overview
+│   └── g30_dash.lisp                  # G30 dashboard integration script
+├── lib/                               # Libraries
+│   └── ninebot-protocol/              # Ninebot protocol C++ implementation
+└── Target/                            # Hardware test/debug scripts
 ```
 
 ## Key Conventions
@@ -89,6 +97,40 @@ Ninebot-G30-Custom/
 - ESC v1.5 and below use **TPS54160** buck converter; v2.1+ use **SY8502FCC**
 - The nRF51822 may be labeled as **nRF51802** (cost-reduced variant, same silicon)
 
+## Development Workflow — MANDATORY After Every Code Change
+
+1. **Build** → `cmake --build bootloader/build/<target>` — fix errors before continuing
+2. **Flash** → `python tools/flasher/ninebot_flasher.py` (stock IAP) or `python tools/flasher/xmodem_send.py` (custom bootloader)
+3. **Verify** → UART monitor at 115200 8N1: check boot messages, protocol responses
+4. **Document** → Update `Documentation/CHANGE_LOG.md` + `Documentation/PROJECT_DOC.md`
+5. **Test** → Run tests, save report in `Documentation/Tests/`
+6. **Commit** → Conventional Commits — **never push**
+
+See `.github/instructions/index.instructions.md` for the full workflow and all linked instruction files.
+
+## Deployment Strategy (6 Phases)
+
+| Phase | Action | Target | Reversible |
+|-------|--------|--------|------------|
+| 0 | Backup + tooling + VESC install | All | Yes |
+| 1 | Custom app via stock IAP (0x08001000) | BLE STM32 | Yes — reflash stock |
+| 2 | Custom bootloader as app (0x08001000) | BLE STM32 | Yes — reflash stock |
+| 3 | Custom bootloader at 0x08000000 (final) | BLE STM32 | SWD only |
+| 4 | nRF51822 BLE firmware (VESC App) | nRF51822 | Via bootloader |
+
+BMS custom firmware is out of scope — the stock BMS works fine. The BLE firmware supports the stock Ninebot BMS protocol and optionally a Daly BMS.
+
+See `.github/instructions/DEPLOYMENT/DEPLOYMENT_STRATEGY.instructions.md` for full details.
+
+## UART Debug Workflow
+
+The primary debug interface is the scooter's internal UART bus at 115200 8N1:
+- **Via VESC USB**: easiest — VESC passthrough mode to reach BLE/BMS
+- **Direct tap**: USB-UART adapter (3.3V TTL) on ESC↔BLE or ESC↔BMS UART lines
+- **Protocol**: Ninebot protocol (5A A5 header) for runtime communication
+- **Updates**: XMODEM-CRC for firmware updates via custom bootloader
+- **Debug output**: `[BOOT]` prefixed messages from bootloader, `[DBG]` from application
+
 ## When Answering Questions About This Project
 
 1. **Hardware questions**: Refer to the respective `boards/*/README.md` files for component details, pinouts, and MCU specifications.
@@ -107,7 +149,7 @@ If asked to write code related to this project, consider:
 
 - **Protocol parsing**: Use the Ninebot protocol format (5A A5 header, checksum = XOR 0xFFFF of sum from length through payload)
 - **Language**: Python is commonly used for protocol tools; C/C++ for embedded firmware
-- **Target MCU**: ARM Cortex-M3 (STM32F103), compiled with arm-none-eabi-gcc
+- **Target MCU**: ARM Cortex-M3 (STM32F103) for BLE board, compiled with arm-none-eabi-gcc; ARM Cortex-M0 (nRF51822) for BLE Bluetooth
 - **Endianness**: Little-endian for all multi-byte values
 - **Firmware addresses**: Custom bootloader: 16 KB at `0x08000000`, application at `0x08004000`. Stock bootloader: 4 KB at `0x08000000`, application at `0x08001000`.
 - **Register access**: I2C for BQ769x0 AFE, UART for inter-board communication
@@ -118,5 +160,6 @@ If asked to write code related to this project, consider:
 - BMS modifications can cause battery fires — always maintain protection circuits
 - Never bypass undervoltage or overcurrent protection
 - The battery pack stores 551 Wh of energy — handle with care
+- BMS firmware stays stock — do NOT flash custom firmware to the BMS board
 - Verify firmware checksums before flashing
 - Keep stock firmware backups before any modification

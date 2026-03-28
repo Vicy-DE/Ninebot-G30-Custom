@@ -43,7 +43,7 @@ endif()
 
 message(STATUS "Target board: ${TARGET_BOARD}")
 
-# ── Common sources (shared crypto, protocol, image validation) ──────────────
+# ── Common sources (shared crypto, protocol, image validation, bootloader) ──
 set(COMMON_DIR ${CMAKE_CURRENT_SOURCE_DIR}/common)
 set(COMMON_SOURCES
     ${COMMON_DIR}/src/sha256.c
@@ -51,6 +51,7 @@ set(COMMON_SOURCES
     ${COMMON_DIR}/src/xmodem.c
     ${COMMON_DIR}/src/crc32.c
     ${COMMON_DIR}/src/fw_header.c
+    ${COMMON_DIR}/src/bootloader.c
 )
 set(COMMON_INCLUDE ${COMMON_DIR}/include)
 
@@ -61,7 +62,7 @@ if(TARGET_BOARD STREQUAL "ble" OR TARGET_BOARD STREQUAL "bms")
     set(STM32_DIR ${CMAKE_CURRENT_SOURCE_DIR}/stm32)
 
     set(TARGET_SOURCES
-        ${STM32_DIR}/src/bootloader_main.c
+        ${STM32_DIR}/src/platform_stm32.c
         ${STM32_DIR}/src/stm32_flash.c
         ${STM32_DIR}/src/stm32_uart.c
         ${STM32_DIR}/src/startup.s
@@ -84,7 +85,7 @@ elseif(TARGET_BOARD STREQUAL "nrf51")
     set(NRF_DIR ${CMAKE_CURRENT_SOURCE_DIR}/nrf51)
 
     set(TARGET_SOURCES
-        ${NRF_DIR}/src/bootloader_main.c
+        ${NRF_DIR}/src/platform_nrf51.c
         ${NRF_DIR}/src/nrf51_flash.c
         ${NRF_DIR}/src/nrf51_uart.c
         ${NRF_DIR}/src/startup.s
