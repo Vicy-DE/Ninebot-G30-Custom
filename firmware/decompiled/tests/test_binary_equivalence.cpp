@@ -71,9 +71,7 @@ TEST(BinaryEq, ChecksumKnownVector2)
  * =========================================================================
  * DRV_1.6.13 buildPacket @ 0x080036AC:
  *   Constructs: [0x5A][0xA5][LEN][SRC][DST][CMD][ARG][PAYLOAD][CHK_LO][CHK_HI]
- *   LEN = payloadLen + 2 (SRC+DST) + 2 (CMD+ARG)
- *   No — wait, from analysis: LEN = payloadLen + 2 (CMD+ARG) + 2 (checksum) 
- *   Let's verify the exact format.
+ *   LEN = payload byte count (firmware-verified). Full frame = LEN + 9 bytes.
  */
 
 TEST(BinaryEq, PacketFormatMatchesFirmware)
@@ -96,8 +94,9 @@ TEST(BinaryEq, PacketFormatMatchesFirmware)
     ASSERT_EQ(buf[5], 0x01);
     ASSERT_EQ(buf[6], 0x10);
 
-    /* Total length should be LEN + HEADER_OVERHEAD (2 header + 1 len = 3) */
-    ASSERT_EQ(len, static_cast<int>(pktLen + 3));
+    /* LEN = payload count (0 here); full frame = LEN + 9 (2 hdr +1 len +4 +2 chk) */
+    ASSERT_EQ(pktLen, 0);
+    ASSERT_EQ(len, static_cast<int>(pktLen + 9));
 
     /* Last 2 bytes are checksum */
     uint16_t sum = 0;

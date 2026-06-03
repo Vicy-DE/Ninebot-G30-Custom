@@ -2,6 +2,15 @@
  * @file protocol.h
  * @brief Ninebot serial protocol — shared between all three boards.
  *
+ * @note WIRE FORMAT (firmware-verified, DRV_1.6.13): the LEN byte equals the
+ *       PAYLOAD byte count; the parser's expected body = LEN + 7 and the full
+ *       frame = LEN + 9 bytes. This was reconciled on 2026-06-03 (an earlier
+ *       revision used LEN = payload + 6, which round-tripped in this simulator
+ *       but was NOT compatible with a real scooter). The byte-faithful
+ *       decompilation and proof live in
+ *       `common/include/ninebot_protocol_verified.hpp` and
+ *       `firmware/decompiled/DECOMPILATION.md`.
+ *
  * Reconstructed from DRV_1.6.13 firmware disassembly. This file contains
  * the wire protocol implementation that is identical across ESC, BLE,
  * and BMS firmware. Each board instantiates the same parser/builder code
@@ -39,8 +48,8 @@ namespace ninebot {
 static constexpr uint8_t HEADER_BYTE_1       = 0x5A;   ///< First magic byte
 static constexpr uint8_t HEADER_BYTE_2       = 0xA5;   ///< Second magic byte
 static constexpr uint8_t MAX_PAYLOAD_LENGTH  = 0xF2;   ///< Max payload (242 bytes)
-static constexpr uint8_t MAX_PACKET_DATA     = 0xF9;   ///< Max total after header
-static constexpr uint8_t HEADER_OVERHEAD     = 1;      ///< Bytes added to LEN
+static constexpr uint8_t MAX_PACKET_DATA     = 0xF3;   ///< Max expected body (LEN+7); reject if larger (firmware @0x08007142)
+static constexpr uint8_t HEADER_OVERHEAD     = 7;      ///< Body bytes beyond LEN value: LEN(1)+SRC+DST+CMD+ARG+CHK(2) → expected = LEN + 7
 static constexpr uint8_t PACKET_BUF_SIZE     = 250;    ///< Per-slot buffer (0xFA)
 static constexpr int     NUM_TX_SLOTS        = 4;      ///< Circular TX queue depth
 static constexpr size_t  MAX_PACKET_SIZE     = 251;    ///< Max complete packet
@@ -150,7 +159,7 @@ inline size_t buildPacket(uint8_t source, uint8_t destination,
     size_t idx = 0;
     buffer[idx++] = HEADER_BYTE_1;   // 0x5A
     buffer[idx++] = HEADER_BYTE_2;   // 0xA5
-    buffer[idx++] = payloadLen + 6;  // LEN = SRC+DST+CMD+ARG+payload+CHK
+    buffer[idx++] = payloadLen;      // LEN = payload byte count (firmware @0x080036BE)
     buffer[idx++] = source;          // SRC
     buffer[idx++] = destination;     // DST
     buffer[idx++] = command;         // CMD
@@ -425,7 +434,7 @@ private:
             pkt.destination   = rxBuffer_[2];
             pkt.command       = rxBuffer_[3];
             pkt.argument      = rxBuffer_[4];
-            pkt.payloadLength = (pkt.length > 6) ? pkt.length - 6 : 0;
+            pkt.payloadLength = (pkt.length <= MAX_PAYLOAD_LENGTH) ? pkt.length : 0;
             pkt.checksum      = recv;
             if (pkt.payloadLength > 0 && pkt.payloadLength <= MAX_PAYLOAD_LENGTH) {
                 std::memcpy(pkt.payload, &rxBuffer_[5], pkt.payloadLength);

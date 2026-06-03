@@ -108,10 +108,14 @@ peripheral register references, and decompiled initialization code).
 | Reset | 0x08001100 | Entry point → SystemInit → main() |
 | SysTick | 0x08005C54 | 1ms tick counter, timing flags |
 | TIM1_UP | 0x08005E74 | Motor commutation at 16kHz |
-| USART1 | (shared) | External/debug protocol parser |
-| USART2 | (shared) | BLE protocol parser |
-| USART3 | (shared) | BMS protocol parser |
-| DMA1_Ch1-3 | 0x0800111A | Default handler (DMA not heavily used) |
+| USART1 | → 0x0800111A (default) | RX **polled/DMA, not per-byte ISR** — external/debug protocol parser runs in main loop |
+| USART2 | → 0x0800111A (default) | RX polled/DMA — BLE protocol parser |
+| USART3 | → 0x0800111A (default) | RX polled/DMA — BMS protocol parser |
+| DMA1_Ch1-3 | 0x0800111A | Default handler |
+
+> **Firmware RE note:** the USART1/2/3 interrupt vectors all point to the common default handler
+> `0x0800111A`, i.e. UART RX is **not** interrupt-driven. The `5A A5` packet parser (found 3× in
+> `DRV_1.2.6`, e.g. `0x08006936`) is reached from the polling/DMA path, not an ISR.
 
 ## ADC Channel Assignments
 

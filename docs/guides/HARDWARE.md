@@ -1,7 +1,3 @@
----
-applyTo: "**/*.c,**/*.h,**/*.S,**/CMakeLists.txt"
----
-
 # Hardware Guide — Ninebot G30 Max
 
 ## RULE: Read Datasheets Before Hardware Changes

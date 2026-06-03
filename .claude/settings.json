@@ -1,0 +1,41 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cmake:*)",
+      "Bash(ninja:*)",
+      "Bash(python tools/analysis/:*)",
+      "Bash(python tools/signing/:*)",
+      "Bash(python tools/flasher/:*)",
+      "Bash(.venv/Scripts/python.exe tools/:*)",
+      "Bash(python -m serial.tools.miniterm:*)",
+      "Bash(arm-none-eabi-gcc:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)"
+    ],
+    "deny": [
+      "Bash(git push:*)",
+      "Bash(git push)"
+    ],
+    "ask": [
+      "Bash(python tools/flasher/ninebot_flasher.py:*)",
+      "Bash(python tools/flasher/xmodem_send.py:*)",
+      "Bash(python tools/flasher/update_bootloader.py:*)",
+      "Bash(openocd:*)"
+    ]
+  },
+  "hooks": {
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -NoProfile -Command \"ConvertTo-Json -Compress @{systemMessage='After compaction, re-read CLAUDE.md to restore the mandatory workflow, conventions, verified-facts caveats (BLE dumps are nRF51; BMS_1.3.4 encrypted), and project structure.'}\""
+          }
+        ]
+      }
+    ]
+  }
+}

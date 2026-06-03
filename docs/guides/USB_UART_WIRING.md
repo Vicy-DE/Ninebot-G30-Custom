@@ -1,7 +1,3 @@
----
-applyTo: "**"
----
-
 # USB-UART Wiring — BLE Dashboard Development
 
 ## Overview

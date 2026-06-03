@@ -1,7 +1,3 @@
----
-applyTo: "**"
----
-
 # Debug Guide — Ninebot G30 Max Custom Firmware
 
 ## Tools
@@ -59,7 +55,7 @@ PC → USB → VESC → "UPDATE BMS\n" → VESC enters passthrough → PC talks 
 
 ## 2. Build
 
-See [BUILD/BUILD_README.instructions.md](../BUILD/BUILD_README.instructions.md).
+See [BUILD.md](BUILD.md).
 
 ```powershell
 cmake --build bootloader/build/ble

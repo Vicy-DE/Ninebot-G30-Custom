@@ -1,14 +1,34 @@
+#!/usr/bin/env python3
 """
-Ninebot G30 Max Firmware Disassembler & Protocol Verifier
-=========================================================
-Disassembles ARM Cortex-M3 firmware binaries and searches for
-Ninebot protocol markers, UART configuration, checksum routines,
-and register references to verify documented protocol.
+Ninebot G30 Max — Arch-Aware Firmware RE Harness & Protocol/Pinout Verifier
+===========================================================================
+Re-disassembles every stock firmware dump and verifies the documented
+Ninebot protocol, peripheral usage, and pinouts against binary evidence.
+
+Key correctness properties (fixing the previous version of this script):
+  * Uses the real on-disk layout: boards/<board>/firmware/*.bin.
+  * Auto-detects architecture and load base PER BINARY from the vector
+    table (STM32 Cortex-M3 app @ 0x08001000  vs  nRF51 Cortex-M0 app
+    @ 0x00018000) instead of assuming STM32 @ 0x08001000 for all of them.
+  * Masks the Thumb bit before disassembling handlers (the old script
+    disassembled at odd addresses and produced garbage for nRF51).
+  * Detects encrypted/invalid images (bad SP/reset) and reports the
+    condition + entropy instead of emitting noise.
+
+This is a STATIC analysis / verification tool. It never touches hardware.
+
+Usage:
+    python tools/analysis/disassemble_firmware.py            # analyze all, stdout
+    python tools/analysis/disassemble_firmware.py --json     # machine-readable summary
+    python tools/analysis/disassemble_firmware.py BLE_1.1.7  # one image by key
 """
 
 import os
-import struct
 import sys
+import json
+import math
+import struct
+import argparse
 from collections import defaultdict
 
 try:
@@ -16,670 +36,308 @@ try:
     HAS_CAPSTONE = True
 except ImportError:
     HAS_CAPSTONE = False
-    print("[WARN] capstone not available, using basic analysis only")
 
-# ─── Configuration ───────────────────────────────────────────────────────────
-
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# ─── Layout ──────────────────────────────────────────────────────────────────
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+REPO_ROOT = os.path.normpath(os.path.join(SCRIPT_DIR, "..", ".."))
 
 FIRMWARE_FILES = {
-    "DRV_1.2.6": os.path.join(BASE_DIR, "ESC-MotorController", "firmware", "DRV_1.2.6.bin"),
-    "DRV_1.6.13": os.path.join(BASE_DIR, "ESC-MotorController", "firmware", "DRV_1.6.13_Compat.bin"),
-    "BLE_1.1.0": os.path.join(BASE_DIR, "BLE-Dashboard", "firmware", "BLE_1.1.0.bin"),
-    "BLE_1.1.7": os.path.join(BASE_DIR, "BLE-Dashboard", "firmware", "BLE_1.1.7.bin"),
-    "BMS_1.3.4": os.path.join(BASE_DIR, "BMS-BatteryManagement", "firmware", "BMS_1.3.4.bin"),
-    "BMS_1.7.4.5": os.path.join(BASE_DIR, "BMS-BatteryManagement", "firmware", "BMS_1.7.4.5.bin"),
+    "DRV_1.2.6":   "boards/esc-motor/firmware/DRV_1.2.6.bin",
+    "DRV_1.6.13":  "boards/esc-motor/firmware/DRV_1.6.13_Compat.bin",
+    "BLE_1.1.0":   "boards/ble-dashboard/firmware/BLE_1.1.0.bin",
+    "BLE_1.1.7":   "boards/ble-dashboard/firmware/BLE_1.1.7.bin",
+    "BMS_1.3.4":   "boards/bms-battery/firmware/BMS_1.3.4.bin",
+    "BMS_1.7.4.5": "boards/bms-battery/firmware/BMS_1.7.4.5.bin",
 }
 
-# STM32F103 base address for application firmware
-APP_BASE_ADDR = 0x08001000
-BOOTLOADER_BASE = 0x08000000
-
-# Protocol constants we expect to find
 PROTOCOL_HEADER = bytes([0x5A, 0xA5])
-CHECKSUM_XOR = 0xFFFF
 
-# STM32F103 peripheral register addresses
+# STM32F103 peripheral register addresses (literal-pool references)
 STM32_PERIPHERALS = {
-    0x40013800: "USART1_SR",
-    0x40013804: "USART1_DR",
-    0x40013808: "USART1_BRR",
-    0x4001380C: "USART1_CR1",
-    0x40013810: "USART1_CR2",
-    0x40013814: "USART1_CR3",
-    0x40004400: "USART2_SR",
-    0x40004404: "USART2_DR",
-    0x40004408: "USART2_BRR",
-    0x4000440C: "USART2_CR1",
-    0x40004410: "USART2_CR2",
-    0x40004414: "USART2_CR3",
-    0x40004800: "USART3_SR",
-    0x40004804: "USART3_DR",
-    0x40004808: "USART3_BRR",
-    0x4000480C: "USART3_CR1",
-    0x40004810: "USART3_CR2",
-    0x40004814: "USART3_CR3",
-    0x40005400: "I2C1_CR1",
-    0x40005404: "I2C1_CR2",
-    0x40005408: "I2C1_OAR1",
-    0x4000540C: "I2C1_OAR2",
-    0x40005410: "I2C1_DR",
-    0x40005414: "I2C1_SR1",
-    0x40005418: "I2C1_SR2",
-    0x4000541C: "I2C1_CCR",
-    0x40005800: "I2C2_CR1",
-    0x40005804: "I2C2_CR2",
-    0x40005810: "I2C2_DR",
-    0x40012C00: "TIM1_CR1",
-    0x40012C04: "TIM1_CR2",
-    0x40000000: "TIM2_CR1",
-    0x40000400: "TIM3_CR1",
-    0x40010800: "GPIOA_CRL",
-    0x40010804: "GPIOA_CRH",
-    0x40010808: "GPIOA_IDR",
-    0x4001080C: "GPIOA_ODR",
-    0x40010C00: "GPIOB_CRL",
-    0x40010C04: "GPIOB_CRH",
-    0x40010C08: "GPIOB_IDR",
-    0x40010C0C: "GPIOB_ODR",
-    0x40021000: "RCC_CR",
-    0x40021004: "RCC_CFGR",
-    0x40021014: "RCC_APB2ENR",
-    0x40021018: "RCC_APB1ENR",
-    0x40022000: "FLASH_ACR",
-    0x40010000: "AFIO_EVCR",
+    0x40013800: "USART1_SR", 0x40013804: "USART1_DR", 0x40013808: "USART1_BRR",
+    0x40004400: "USART2_SR", 0x40004404: "USART2_DR", 0x40004408: "USART2_BRR",
+    0x40004800: "USART3_SR", 0x40004804: "USART3_DR", 0x40004808: "USART3_BRR",
+    0x40005400: "I2C1_CR1",  0x40005410: "I2C1_DR",   0x40005414: "I2C1_SR1",
+    0x40005800: "I2C2_CR1",  0x40005810: "I2C2_DR",
+    0x40012C00: "TIM1_CR1",  0x40000000: "TIM2_CR1",  0x40000400: "TIM3_CR1",
+    0x40010800: "GPIOA_CRL", 0x40010804: "GPIOA_CRH", 0x40010C00: "GPIOB_CRL",
+    0x40010C04: "GPIOB_CRH", 0x40021018: "RCC_APB1ENR", 0x40021014: "RCC_APB2ENR",
 }
 
-# Baud rate divisor values for 72MHz clock
-# BRR = fck / baud. For 115200: 72000000/115200 = 625 = 0x271
-BAUD_DIVISORS = {
-    0x0271: 115200,
-    0x1388: 9600,
-    0x09C4: 19200,
-    0x04E2: 38400,
-    0x0138: 230400,
-    0x009C: 460800,
-    # For 36MHz APB1 clock: 36000000/115200 ≈ 312.5 → 0x0139 (with fraction)
-    0x0139: "115200 (36MHz APB1)",
-    0x0138: "115200 or 230400",
+# nRF51 peripheral bases (Nordic)
+NRF51_PERIPHERALS = {
+    0x40002000: "UART0_TASKS_STARTRX", 0x40002100: "UART0_EVENTS_CTS",
+    0x40002300: "UART0_INTEN", 0x40002500: "UART0_ENABLE", 0x40002524: "UART0_BAUDRATE",
 }
 
+# 36 MHz APB1 → 0x0139, 72 MHz APB2 → 0x0271 are the canonical 115200 BRR words.
+STM32_BRR_115200 = {0x0271: "115200 @72MHz (APB2/USART1)", 0x0139: "115200 @36MHz (APB1/USART2-3)"}
 
-def load_firmware(filepath):
-    """Load firmware binary file."""
-    with open(filepath, "rb") as f:
+# STM32 vector index = 16 + IRQn.  USART1 IRQn=37, USART2=38, USART3=39.
+STM32_IRQ_VECTORS = {"USART1": 16 + 37, "USART2": 16 + 38, "USART3": 16 + 39,
+                     "I2C1_EV": 16 + 31, "TIM1_UP": 16 + 25, "SysTick": 15}
+
+
+def load(path):
+    with open(path, "rb") as f:
         return f.read()
 
 
-def analyze_vector_table(data, name):
-    """Analyze ARM Cortex-M3 vector table at start of binary."""
-    print(f"\n{'='*70}")
-    print(f"  VECTOR TABLE ANALYSIS: {name}")
-    print(f"{'='*70}")
-    
-    if len(data) < 0x100:
-        print("  [!] File too small for vector table analysis")
-        return {}
-    
-    vectors = {}
-    vector_names = [
-        "Initial SP", "Reset Handler", "NMI Handler", "HardFault Handler",
-        "MemManage Handler", "BusFault Handler", "UsageFault Handler",
-        "Reserved", "Reserved", "Reserved", "Reserved",
-        "SVCall Handler", "Debug Monitor", "Reserved",
-        "PendSV Handler", "SysTick Handler",
-        # External interrupts
-        "WWDG", "PVD", "TAMPER", "RTC", "FLASH", "RCC",
-        "EXTI0", "EXTI1", "EXTI2", "EXTI3", "EXTI4",
-        "DMA1_Ch1", "DMA1_Ch2", "DMA1_Ch3", "DMA1_Ch4", "DMA1_Ch5",
-        "DMA1_Ch6", "DMA1_Ch7", "ADC1_2", "USB_HP/CAN_TX",
-        "USB_LP/CAN_RX0", "CAN_RX1", "CAN_SCE", "EXTI9_5",
-        "TIM1_BRK", "TIM1_UP", "TIM1_TRG_COM", "TIM1_CC",
-        "TIM2", "TIM3", "TIM4", "I2C1_EV", "I2C1_ER",
-        "I2C2_EV", "I2C2_ER", "SPI1", "SPI2",
-        "USART1", "USART2", "USART3", "EXTI15_10",
-    ]
-    
-    for i, vname in enumerate(vector_names[:min(len(vector_names), len(data)//4)]):
+def shannon_entropy(data):
+    if not data:
+        return 0.0
+    freq = defaultdict(int)
+    for b in data:
+        freq[b] += 1
+    n = len(data)
+    return -sum((c / n) * math.log2(c / n) for c in freq.values())
+
+
+def detect_arch(data):
+    """Identify load base & arch from the Cortex vector table at offset 0.
+
+    Returns dict {arch, base, sp, reset, valid, reason}.
+    """
+    if len(data) < 8:
+        return {"valid": False, "reason": "file too small", "arch": "?", "base": 0}
+    sp, reset = struct.unpack_from("<II", data, 0)
+    reset_clean = reset & ~1
+    sp_in_sram = 0x20000000 <= sp <= 0x20008000
+
+    # STM32F103 application image: reset vector in 0x0800_1xxx..0x0801_xxxx
+    if sp_in_sram and 0x08000000 <= reset_clean < 0x08040000:
+        base = reset_clean & 0xFFFFF000
+        return {"valid": True, "arch": "Cortex-M3 (STM32F103)", "base": base,
+                "sp": sp, "reset": reset_clean, "reason": "STM32 app vector table"}
+    # nRF51822 application image: reset vector around the post-SoftDevice app base
+    if sp_in_sram and 0x00010000 <= reset_clean < 0x00040000:
+        base = 0x00018000 if 0x00018000 <= reset_clean < 0x00040000 else (reset_clean & 0xFFFFF000)
+        return {"valid": True, "arch": "Cortex-M0 (nRF51822)", "base": base,
+                "sp": sp, "reset": reset_clean, "reason": "nRF51 app vector table"}
+    return {"valid": False, "arch": "unknown/encrypted", "base": 0, "sp": sp,
+            "reset": reset_clean,
+            "reason": "SP/reset not a valid Cortex vector table — encrypted or non-zero offset"}
+
+
+def md(arch):
+    m = Cs(CS_ARCH_ARM, CS_MODE_THUMB | CS_MODE_LITTLE_ENDIAN)
+    m.detail = True
+    return m
+
+
+def vector_table(data, base):
+    """Return list of (idx, name, addr) for resolvable handlers."""
+    names = ["Initial_SP", "Reset", "NMI", "HardFault", "MemManage", "BusFault",
+             "UsageFault", "RSVD", "RSVD", "RSVD", "RSVD", "SVCall", "DebugMon",
+             "RSVD", "PendSV", "SysTick"]
+    out = []
+    n = min(len(names), len(data) // 4)
+    for i in range(n):
         addr = struct.unpack_from("<I", data, i * 4)[0]
-        vectors[vname] = addr
-        if addr != 0 and vname not in ("Reserved",):
-            # Check if it looks like a valid code address (in flash range)
-            if 0x08000000 <= addr <= 0x0801FFFF or addr == 0:
-                # Mark Thumb bit
-                thumb = addr & 1
-                real_addr = addr & ~1
-                if vname in ("USART1", "USART2", "USART3", "I2C1_EV", "I2C2_EV",
-                             "TIM1_UP", "TIM1_CC", "SysTick Handler", "Reset Handler",
-                             "DMA1_Ch1", "DMA1_Ch2", "DMA1_Ch3"):
-                    print(f"  [{i:3d}] {vname:20s} = 0x{real_addr:08X} {'(Thumb)' if thumb else ''}")
-    
-    # Check USART interrupt handlers specifically
-    print(f"\n  --- UART Interrupt Handlers ---")
-    for uname in ("USART1", "USART2", "USART3"):
-        if uname in vectors and vectors[uname] != 0:
-            addr = vectors[uname] & ~1
-            print(f"  {uname}: 0x{addr:08X} -> active (protocol handler likely here)")
-        elif uname in vectors:
-            print(f"  {uname}: not configured (0x00000000)")
-    
-    return vectors
+        out.append((i, names[i], addr))
+    return out
 
 
-def find_protocol_headers(data, name):
-    """Search for 0x5A 0xA5 protocol header bytes in firmware."""
-    print(f"\n{'='*70}")
-    print(f"  PROTOCOL HEADER SEARCH (0x5A 0xA5): {name}")
-    print(f"{'='*70}")
-    
-    occurrences = []
-    offset = 0
-    while True:
-        idx = data.find(PROTOCOL_HEADER, offset)
-        if idx == -1:
-            break
-        # Get surrounding context
-        context_start = max(0, idx - 4)
-        context_end = min(len(data), idx + 16)
-        context = data[context_start:context_end]
-        occurrences.append((idx, context))
-        offset = idx + 1
-    
-    print(f"  Found {len(occurrences)} occurrences of 0x5A 0xA5")
-    for idx, ctx in occurrences:
-        addr = APP_BASE_ADDR + idx
-        hex_ctx = " ".join(f"{b:02X}" for b in ctx)
-        print(f"  Offset 0x{idx:06X} (addr 0x{addr:08X}): {hex_ctx}")
-    
-    return occurrences
+def in_image(addr, base, length):
+    a = addr & ~1
+    return base <= a < base + length
 
 
-def find_byte_constants(data, name):
-    """Search for important protocol-related byte constants in code."""
-    print(f"\n{'='*70}")
-    print(f"  PROTOCOL CONSTANT SEARCH: {name}")
-    print(f"{'='*70}")
-    
-    # Search for protocol addresses as immediate values in Thumb instructions
-    # In Thumb, MOV Rd, #imm8 is common for loading small constants
-    constants_to_find = {
-        0x5A: "Protocol header byte 1 (0x5A)",
-        0xA5: "Protocol header byte 2 (0xA5)",
-        0x20: "ESC address (0x20)",
-        0x21: "BLE address (0x21)",
-        0x22: "BMS address (0x22)",
-        0x3E: "App address (0x3E)",
-        0x3F: "PC address (0x3F)",
-    }
-    
-    results = {}
-    for const_val, desc in constants_to_find.items():
-        count = 0
-        positions = []
-        for i in range(len(data)):
-            if data[i] == const_val:
-                count += 1
-                if len(positions) < 5:  # Just track first few
-                    positions.append(i)
-        results[const_val] = count
-        
-    for const_val, desc in constants_to_find.items():
-        print(f"  0x{const_val:02X} ({desc}): {results[const_val]} raw occurrences")
-    
-    return results
+def find_immediates(data, base, arch, wanted):
+    """Linear-sweep disassembly; collect instructions whose immediate is in `wanted`.
+
+    Returns {imm: [(addr, mnemonic, op_str), ...]}.
+    """
+    if not HAS_CAPSTONE:
+        return {}
+    m = md(arch)
+    hits = defaultdict(list)
+    for insn in m.disasm(data, base):
+        for op in insn.operands:
+            if op.type == 2:  # ARM_OP_IMM
+                if op.imm in wanted:
+                    hits[op.imm].append((insn.address, insn.mnemonic, insn.op_str))
+    return hits
 
 
-def find_checksum_pattern(data, name):
-    """Search for XOR 0xFFFF checksum pattern in firmware."""
-    print(f"\n{'='*70}")
-    print(f"  CHECKSUM PATTERN SEARCH (XOR 0xFFFF): {name}")
-    print(f"{'='*70}")
-    
-    # 0xFFFF as a 16-bit little-endian value
-    ffff_bytes = struct.pack("<H", 0xFFFF)
-    
-    occurrences = []
-    offset = 0
-    while True:
-        idx = data.find(ffff_bytes, offset)
-        if idx == -1:
-            break
-        occurrences.append(idx)
-        offset = idx + 1
-    
-    # Also search for 0xFFFF as a 32-bit value (common in ARM immediate encoding)
-    ffff_32 = struct.pack("<I", 0xFFFF)
-    occ_32 = []
-    offset = 0
-    while True:
-        idx = data.find(ffff_32, offset)
-        if idx == -1:
-            break
-        occ_32.append(idx)
-        offset = idx + 1
-    
-    print(f"  0xFFFF (16-bit LE): {len(occurrences)} occurrences")
-    for idx in occurrences[:10]:
-        addr = APP_BASE_ADDR + idx
-        context = data[max(0,idx-2):min(len(data),idx+6)]
-        hex_ctx = " ".join(f"{b:02X}" for b in context)
-        print(f"    Offset 0x{idx:06X} (0x{addr:08X}): {hex_ctx}")
-    
-    print(f"  0x0000FFFF (32-bit LE): {len(occ_32)} occurrences")
-    for idx in occ_32[:10]:
-        addr = APP_BASE_ADDR + idx
-        context = data[max(0,idx-2):min(len(data),idx+6)]
-        hex_ctx = " ".join(f"{b:02X}" for b in context)
-        print(f"    Offset 0x{idx:06X} (0x{addr:08X}): {hex_ctx}")
-    
-    return occurrences, occ_32
-
-
-def find_peripheral_references(data, name):
-    """Search for STM32 peripheral register addresses in firmware."""
-    print(f"\n{'='*70}")
-    print(f"  STM32 PERIPHERAL REGISTER REFERENCES: {name}")
-    print(f"{'='*70}")
-    
+def find_literal_refs(data, addr_map):
+    """Find 32-bit little-endian addresses from addr_map present in the literal pool."""
     found = {}
-    for reg_addr, reg_name in sorted(STM32_PERIPHERALS.items()):
-        # Search for the address as a 32-bit little-endian value (literal pool)
-        addr_bytes = struct.pack("<I", reg_addr)
+    for reg_addr, name in addr_map.items():
+        needle = struct.pack("<I", reg_addr)
         positions = []
-        offset = 0
+        off = 0
         while True:
-            idx = data.find(addr_bytes, offset)
-            if idx == -1:
+            i = data.find(needle, off)
+            if i < 0:
                 break
-            positions.append(idx)
-            offset = idx + 1
-        
+            positions.append(i)
+            off = i + 1
         if positions:
-            found[reg_name] = positions
-    
-    # Group by peripheral
-    peripherals = defaultdict(list)
-    for reg_name, positions in sorted(found.items()):
-        periph = reg_name.split("_")[0]
-        peripherals[periph].append((reg_name, positions))
-    
-    for periph, regs in sorted(peripherals.items()):
-        print(f"\n  --- {periph} ---")
-        for reg_name, positions in regs:
-            pos_str = ", ".join(f"0x{p:06X}" for p in positions[:5])
-            extra = f" (+{len(positions)-5} more)" if len(positions) > 5 else ""
-            print(f"  {reg_name:20s}: {len(positions):2d} refs at {pos_str}{extra}")
-    
+            found[name] = positions
     return found
 
 
-def find_baud_rate(data, name):
-    """Search for baud rate divisor values."""
-    print(f"\n{'='*70}")
-    print(f"  BAUD RATE CONFIGURATION SEARCH: {name}")
-    print(f"{'='*70}")
-    
-    # For STM32F103 at 72MHz PCLK2 (USART1) or 36MHz PCLK1 (USART2/3):
-    # BRR for USART1  @ 72MHz: 72000000/115200 = 625.0   → 0x0271
-    # BRR for USART2/3 @ 36MHz: 36000000/115200 = 312.5  → mantissa=312=0x138, frac=8 → 0x1388? 
-    # Actually BRR = mantissa<<4 | fraction
-    # 312.5 → mantissa=19, frac=8.5 → BRR = 19*16+8 = 312+8 = nah
-    # Actual: USARTDIV = fck/(16*baud) = 36000000/(16*115200) = 19.53125
-    # Mantissa = 19 = 0x13, Fraction = 0.53125 * 16 = 8.5 ≈ 9 → BRR = 0x139
-    # Or: USARTDIV = 72000000/(16*115200) = 39.0625
-    # Mantissa = 39 = 0x27, Fraction = 0.0625 * 16 = 1 → BRR = 0x271
-    
-    baud_patterns = {
-        0x0271: "115200 baud (USART1 @ 72MHz PCLK2)",
-        0x0139: "115200 baud (USART2/3 @ 36MHz PCLK1)",
-        0x0138: "115200 baud (USART2/3 @ 36MHz PCLK1, alt)",
-        0x1388: "9600 baud (USART1 @ 72MHz)",
-    }
-    
-    for brr_val, desc in baud_patterns.items():
-        brr_bytes = struct.pack("<H", brr_val)
-        positions = []
-        offset = 0
-        while True:
-            idx = data.find(brr_bytes, offset)
-            if idx == -1:
-                break
-            positions.append(idx)
-            offset = idx + 1
-        
-        if positions:
-            pos_str = ", ".join(f"0x{p:06X}" for p in positions[:8])
-            print(f"  BRR=0x{brr_val:04X} ({desc}): {len(positions)} at {pos_str}")
-    
-    # Also search for the literal 115200 as a 32-bit value (might be passed to init function)
-    for baud in [115200, 9600, 19200, 38400, 57600, 230400, 460800]:
-        baud_bytes = struct.pack("<I", baud)
-        positions = []
-        offset = 0
-        while True:
-            idx = data.find(baud_bytes, offset)
-            if idx == -1:
-                break
-            positions.append(idx)
-            offset = idx + 1
-        if positions:
-            pos_str = ", ".join(f"0x{p:06X}" for p in positions[:5])
-            print(f"  Literal {baud}: {len(positions)} at {pos_str}")
+def find_brr(data):
+    out = {}
+    for word, desc in STM32_BRR_115200.items():
+        cnt = data.count(struct.pack("<H", word))
+        if cnt:
+            out[desc] = cnt
+    return out
 
 
-def find_strings(data, name, min_len=4):
-    """Extract printable ASCII strings from firmware."""
-    print(f"\n{'='*70}")
-    print(f"  STRING EXTRACTION: {name}")
-    print(f"{'='*70}")
-    
-    strings = []
-    current = ""
-    start = 0
-    
+def extract_strings(data, base, min_len=4):
+    interesting = ("uart", "ble", "ninebot", "segway", "scooter", "g30", "max",
+                   "version", "drv", "bms", "esc", "flash", "boot", "update",
+                   "error", "cell", "volt", "temp", "miio", "mi ", "token", "auth",
+                   "sn", "bond", "softdevice")
+    strings, cur, start = [], "", 0
     for i, b in enumerate(data):
         if 0x20 <= b <= 0x7E:
-            if not current:
+            if not cur:
                 start = i
-            current += chr(b)
+            cur += chr(b)
         else:
-            if len(current) >= min_len:
-                strings.append((start, current))
-            current = ""
-    
-    if len(current) >= min_len:
-        strings.append((start, current))
-    
-    # Filter for interesting strings
-    interesting_keywords = [
-        "uart", "usart", "serial", "baud", "protocol", "packet",
-        "checksum", "crc", "ble", "bluetooth", "ninebot", "segway",
-        "motor", "battery", "bms", "esc", "drv", "version", "error",
-        "flash", "boot", "update", "firmware", "i2c", "spi",
-        "adc", "pwm", "timer", "gpio", "dma",
-        "g30", "max", "5aa5", "header",
-        "stm32", "gd32", "nrf", "bq76",
-        "cell", "voltage", "current", "temperature", "temp",
-    ]
-    
-    print(f"\n  Total strings found (>={min_len} chars): {len(strings)}")
-    print(f"\n  --- All extracted strings ---")
-    for offset, s in strings:
-        addr = APP_BASE_ADDR + offset
-        # Highlight interesting ones
-        is_interesting = any(kw in s.lower() for kw in interesting_keywords)
-        marker = " <<<" if is_interesting else ""
-        print(f"  0x{addr:08X}: \"{s}\"{marker}")
-    
-    return strings
+            if len(cur) >= min_len:
+                strings.append((base + start, cur))
+            cur = ""
+    if len(cur) >= min_len:
+        strings.append((base + start, cur))
+    notable = [(a, s) for a, s in strings if any(k in s.lower() for k in interesting)]
+    return strings, notable
 
 
-def disassemble_region(data, offset, length, base_addr):
-    """Disassemble a region of firmware using capstone."""
+def disasm_handler(data, base, arch, addr, max_insns=40):
     if not HAS_CAPSTONE:
         return []
-    
-    md = Cs(CS_ARCH_ARM, CS_MODE_THUMB | CS_MODE_LITTLE_ENDIAN)
-    md.detail = True
-    
-    region = data[offset:offset + length]
-    instructions = []
-    
-    for insn in md.disasm(region, base_addr + offset):
-        instructions.append(insn)
-    
-    return instructions
+    m = md(arch)
+    off = (addr & ~1) - base
+    if off < 0 or off >= len(data):
+        return []
+    out = []
+    for insn in m.disasm(data[off:off + max_insns * 4], addr & ~1):
+        out.append((insn.address, insn.mnemonic, insn.op_str))
+        mn, ops = insn.mnemonic.lower(), insn.op_str.lower()
+        if (mn == "bx" and "lr" in ops) or (mn.startswith("pop") and "pc" in ops):
+            break
+        if len(out) >= max_insns:
+            break
+    return out
 
 
-def disassemble_around_offset(data, offset, name, context=32):
-    """Disassemble code around a specific offset."""
-    if not HAS_CAPSTONE:
-        return
-    
-    md = Cs(CS_ARCH_ARM, CS_MODE_THUMB | CS_MODE_LITTLE_ENDIAN)
-    
-    start = max(0, offset - context)
-    end = min(len(data), offset + context)
-    region = data[start:end]
-    
-    print(f"\n  Disassembly around 0x{APP_BASE_ADDR + offset:08X}:")
-    for insn in md.disasm(region, APP_BASE_ADDR + start):
-        marker = " <<<" if insn.address == APP_BASE_ADDR + offset else ""
-        print(f"    0x{insn.address:08X}: {insn.mnemonic:8s} {insn.op_str}{marker}")
-
-
-def find_protocol_handler(data, name):
-    """Try to locate the protocol packet handler function."""
-    print(f"\n{'='*70}")
-    print(f"  PROTOCOL HANDLER ANALYSIS: {name}")
-    print(f"{'='*70}")
-    
-    if not HAS_CAPSTONE:
-        print("  [!] Capstone not available - skipping disassembly analysis")
-        return
-    
-    md = Cs(CS_ARCH_ARM, CS_MODE_THUMB | CS_MODE_LITTLE_ENDIAN)
-    md.detail = True
-    
-    # Strategy: Find code that compares bytes against 0x5A and 0xA5
-    # In Thumb mode, CMP Rn, #0x5A would be encoded as:
-    # CMP instruction with immediate
-    
-    # Search for CMP instructions with protocol-relevant immediates
-    # Thumb CMP Rn, #imm8: 0010 1nnn iiiiiiii -> byte pattern varies
-    
-    # Let's look for sequences where 0x5A and 0xA5 appear close together
-    # as they would in a header validation routine
-    
-    candidate_offsets = []
-    
-    for i in range(len(data) - 20):
-        # Look for 0x5A within a few bytes of 0xA5
-        window = data[i:i+20]
-        if 0x5A in window and 0xA5 in window:
-            idx_5a = window.index(0x5A)
-            idx_a5 = window.index(0xA5)
-            # They should be close in code (within ~10 bytes = ~5 instructions)
-            if abs(idx_5a - idx_a5) <= 10:
-                # Check if this looks like code (not data)
-                # Heuristic: check if there are valid Thumb instructions nearby
-                candidate_offsets.append(i + min(idx_5a, idx_a5))
-    
-    # Deduplicate (keep unique regions)
-    if candidate_offsets:
-        deduped = [candidate_offsets[0]]
-        for off in candidate_offsets[1:]:
-            if off - deduped[-1] > 32:
-                deduped.append(off)
-        candidate_offsets = deduped
-    
-    print(f"  Found {len(candidate_offsets)} candidate protocol handler regions")
-    
-    # Disassemble around the most promising candidates
-    for off in candidate_offsets[:5]:
-        print(f"\n  --- Candidate at offset 0x{off:06X} (0x{APP_BASE_ADDR+off:08X}) ---")
-        
-        # Disassemble a window around this offset
-        start = max(0, off - 16)
-        end = min(len(data), off + 48)
-        region = data[start:end]
-        
-        for insn in md.disasm(region, APP_BASE_ADDR + start):
-            # Highlight comparisons with protocol bytes
-            highlight = ""
-            if "0x5a" in insn.op_str.lower() or "#0x5a" in insn.op_str.lower():
-                highlight = " <<< HEADER BYTE 1 (0x5A)"
-            elif "0xa5" in insn.op_str.lower() or "#0xa5" in insn.op_str.lower():
-                highlight = " <<< HEADER BYTE 2 (0xA5)"
-            elif "0x20" in insn.op_str.lower() and "cmp" in insn.mnemonic.lower():
-                highlight = " <<< ESC ADDR?"
-            elif "0x21" in insn.op_str.lower() and "cmp" in insn.mnemonic.lower():
-                highlight = " <<< BLE ADDR?"
-            elif "0x22" in insn.op_str.lower() and "cmp" in insn.mnemonic.lower():
-                highlight = " <<< BMS ADDR?"
-            
-            print(f"    0x{insn.address:08X}: {insn.mnemonic:8s} {insn.op_str}{highlight}")
-
-
-def analyze_interrupt_handlers(data, name):
-    """Analyze USART interrupt handler code from vector table."""
-    print(f"\n{'='*70}")
-    print(f"  USART INTERRUPT HANDLER DISASSEMBLY: {name}")
-    print(f"{'='*70}")
-    
-    if not HAS_CAPSTONE:
-        print("  [!] Capstone not available")
-        return
-    
-    md = Cs(CS_ARCH_ARM, CS_MODE_THUMB | CS_MODE_LITTLE_ENDIAN)
-    
-    # USART1 IRQ = vector 37 (index 37+16=53), but in bare vector table:
-    # USART1 = vector index 53 (0xD4)
-    # USART2 = vector index 54 (0xD8)
-    # USART3 = vector index 55 (0xDC)
-    
-    usart_vectors = {
-        "USART1": 53,
-        "USART2": 54,
-        "USART3": 55,
-    }
-    
-    for usart_name, vec_idx in usart_vectors.items():
-        vec_offset = vec_idx * 4
-        if vec_offset + 4 > len(data):
-            continue
-        
-        handler_addr = struct.unpack_from("<I", data, vec_offset)[0]
-        if handler_addr == 0:
-            print(f"\n  {usart_name}: No handler (vector = 0)")
-            continue
-        
-        handler_addr_clean = handler_addr & ~1  # Clear Thumb bit
-        fw_offset = handler_addr_clean - APP_BASE_ADDR
-        
-        if fw_offset < 0 or fw_offset >= len(data):
-            # Try with bootloader base
-            fw_offset = handler_addr_clean - BOOTLOADER_BASE
-            if fw_offset < 0 or fw_offset >= len(data):
-                print(f"\n  {usart_name}: Handler at 0x{handler_addr_clean:08X} (outside firmware range)")
-                continue
-        
-        print(f"\n  {usart_name} IRQ Handler at 0x{handler_addr_clean:08X}:")
-        
-        # Disassemble first 64 bytes of handler
-        end = min(len(data), fw_offset + 128)
-        region = data[fw_offset:end]
-        
-        insn_count = 0
-        for insn in md.disasm(region, handler_addr_clean):
-            highlight = ""
-            op_lower = insn.op_str.lower()
-            mn_lower = insn.mnemonic.lower()
-            
-            # Look for interesting patterns
-            if "0x5a" in op_lower:
-                highlight = " <<< Protocol header 0x5A"
-            elif "0xa5" in op_lower:
-                highlight = " <<< Protocol header 0xA5"
-            elif any(f"0x{addr:x}" in op_lower for addr in [0x40013804, 0x40004404, 0x40004804]):
-                highlight = " <<< USART data register"
-            elif "bx" in mn_lower and "lr" in op_lower:
-                highlight = " <<< Return"
-            elif "pop" in mn_lower and "pc" in op_lower:
-                highlight = " <<< Return"
-            
-            print(f"    0x{insn.address:08X}: {insn.mnemonic:8s} {insn.op_str}{highlight}")
-            
-            insn_count += 1
-            if insn_count > 40:
-                print("    ... (truncated)")
-                break
-            
-            # Stop at function return
-            if ("bx" in mn_lower and "lr" in op_lower) or \
-               ("pop" in mn_lower and "pc" in op_lower):
-                break
-
-
-def analyze_firmware(fw_name, fw_path):
-    """Complete analysis of a single firmware binary."""
-    print(f"\n{'#'*70}")
-    print(f"{'#'*70}")
-    print(f"##  FIRMWARE ANALYSIS: {fw_name}")
-    print(f"##  File: {fw_path}")
-    print(f"{'#'*70}")
-    print(f"{'#'*70}")
-    
-    if not os.path.exists(fw_path):
-        print(f"  [!] File not found: {fw_path}")
-        return
-    
-    data = load_firmware(fw_path)
-    print(f"\n  File size: {len(data)} bytes ({len(data)/1024:.1f} KB)")
-    print(f"  Base address: 0x{APP_BASE_ADDR:08X}")
-    print(f"  End address:  0x{APP_BASE_ADDR + len(data):08X}")
-    
-    # MD5 hash
+def analyze(key, rel_path):
+    path = os.path.join(REPO_ROOT, rel_path)
+    res = {"key": key, "path": rel_path}
+    if not os.path.exists(path):
+        res["error"] = "missing"
+        return res
+    data = load(path)
     import hashlib
-    md5 = hashlib.md5(data).hexdigest()
-    sha256 = hashlib.sha256(data).hexdigest()
-    print(f"  MD5:    {md5}")
-    print(f"  SHA256: {sha256}")
-    
-    # Run all analyses
-    vectors = analyze_vector_table(data, fw_name)
-    find_protocol_headers(data, fw_name)
-    find_byte_constants(data, fw_name)
-    find_checksum_pattern(data, fw_name)
-    find_peripheral_references(data, fw_name)
-    find_baud_rate(data, fw_name)
-    find_strings(data, fw_name)
-    
-    if HAS_CAPSTONE:
-        find_protocol_handler(data, fw_name)
-        analyze_interrupt_handlers(data, fw_name)
+    res["size"] = len(data)
+    res["md5"] = hashlib.md5(data).hexdigest()
+    res["sha256"] = hashlib.sha256(data).hexdigest()
+    res["entropy"] = round(shannon_entropy(data), 3)
+
+    info = detect_arch(data)
+    res["arch"] = info
+    base = info["base"]
+
+    if not info["valid"]:
+        res["verdict"] = "ENCRYPTED/UNRECOGNIZED — static disassembly skipped"
+        return res
+
+    is_stm32 = "STM32" in info["arch"]
+    periph_map = STM32_PERIPHERALS if is_stm32 else NRF51_PERIPHERALS
+    res["peripherals"] = find_literal_refs(data, periph_map)
+    if is_stm32:
+        res["brr_115200"] = find_brr(data)
+
+    # protocol header byte comparisons in code (CMP/MOVS #0x5A / #0xA5)
+    imm_hits = find_immediates(data, base, info["arch"], {0x5A, 0xA5, 0x20, 0x21, 0x22, 0x3E})
+    res["header_cmp_0x5A"] = [(hex(a), mn, op) for a, mn, op in imm_hits.get(0x5A, [])][:12]
+    res["header_cmp_0xA5"] = [(hex(a), mn, op) for a, mn, op in imm_hits.get(0xA5, [])][:12]
+    res["raw_5AA5_in_image"] = data.count(PROTOCOL_HEADER)
+
+    # vector table + USART/I2C IRQ handler resolution
+    vt = vector_table(data, base)
+    res["initial_sp"] = hex(vt[0][2])
+    res["reset"] = hex(vt[1][2] & ~1)
+    handlers = {}
+    if is_stm32:
+        for name, idx in STM32_IRQ_VECTORS.items():
+            if idx * 4 + 4 <= len(data):
+                addr = struct.unpack_from("<I", data, idx * 4)[0]
+                if addr and in_image(addr, base, len(data)):
+                    handlers[name] = {"addr": hex(addr & ~1),
+                                      "disasm": [f"{hex(a)}: {mn} {op}"
+                                                 for a, mn, op in disasm_handler(data, base, info["arch"], addr, 24)]}
+    res["irq_handlers"] = handlers
+
+    _, notable = extract_strings(data, base)
+    res["notable_strings"] = [(hex(a), s) for a, s in notable][:40]
+    res["verdict"] = "OK — " + info["arch"]
+    return res
 
 
-def protocol_verification_summary(all_results):
-    """Print summary of protocol verification findings."""
-    print(f"\n{'#'*70}")
-    print(f"  PROTOCOL VERIFICATION SUMMARY")
-    print(f"{'#'*70}")
-    
-    print("""
-  Documented Protocol Specification vs Firmware Evidence:
-  
-  ┌─────────────────────────────────┬──────────┬─────────────────────────────┐
-  │ Protocol Feature                │ Status   │ Evidence                    │
-  ├─────────────────────────────────┼──────────┼─────────────────────────────┤
-  │ Header: 0x5A 0xA5              │ See logs │ Binary search for 5A A5     │
-  │ UART @ 115200 8N1              │ See logs │ BRR register values         │
-  │ Checksum: sum XOR 0xFFFF       │ See logs │ 0xFFFF constant presence    │
-  │ Addresses: 0x20/0x21/0x22      │ See logs │ Byte constant search        │
-  │ USART peripheral usage         │ See logs │ Register address references │
-  │ I2C for BMS AFE                │ See logs │ I2C register references     │
-  │ Cortex-M3 vector table         │ See logs │ Vector table analysis       │
-  └─────────────────────────────────┴──────────┴─────────────────────────────┘
-  
-  See individual firmware analysis sections above for detailed evidence.
-""")
+def print_report(res):
+    print("#" * 78)
+    print(f"##  {res['key']}   ({res['path']})")
+    print("#" * 78)
+    if res.get("error") == "missing":
+        print("  [!] FILE MISSING\n")
+        return
+    a = res["arch"]
+    print(f"  size={res['size']}B  entropy={res['entropy']}  md5={res['md5'][:16]}")
+    print(f"  arch: {a['arch']}   base=0x{a['base']:08X}   SP=0x{a['sp']:08X}  reset=0x{a['reset']:08X}")
+    print(f"  detect: {a['reason']}")
+    print(f"  VERDICT: {res['verdict']}")
+    if not a["valid"]:
+        print()
+        return
+    if "brr_115200" in res:
+        print(f"  baud (BRR 115200): {res['brr_115200'] or 'none found'}")
+    if res.get("peripherals"):
+        print("  peripheral literal refs:")
+        for name, pos in sorted(res["peripherals"].items()):
+            print(f"      {name:14s} x{len(pos)}")
+    print(f"  raw 0x5A 0xA5 byte pairs in image: {res['raw_5AA5_in_image']}")
+    print(f"  in-code CMP/MOV #0x5A: {len(res['header_cmp_0x5A'])} hits; #0xA5: {len(res['header_cmp_0xA5'])} hits")
+    for a2, mn, op in res["header_cmp_0x5A"][:6]:
+        print(f"      {a2}: {mn} {op}")
+    if res.get("irq_handlers"):
+        print("  resolved IRQ handlers:")
+        for name, h in res["irq_handlers"].items():
+            print(f"      {name} @ {h['addr']}")
+    if res.get("notable_strings"):
+        print("  notable strings:")
+        for addr, s in res["notable_strings"][:15]:
+            print(f"      {addr}: {s!r}")
+    print()
 
 
 def main():
-    print("=" * 70)
-    print("  Ninebot G30 Max Firmware Disassembler & Protocol Verifier")
-    print("  ARM Cortex-M3 (STM32F103) Thumb Mode Analysis")
-    print(f"  Capstone engine: {'Available' if HAS_CAPSTONE else 'NOT AVAILABLE'}")
-    print("=" * 70)
-    
-    all_results = {}
-    
-    for fw_name, fw_path in FIRMWARE_FILES.items():
-        analyze_firmware(fw_name, fw_path)
-    
-    protocol_verification_summary(all_results)
-    
-    print("\n[Done] Analysis complete.")
+    ap = argparse.ArgumentParser(description="Arch-aware Ninebot firmware RE harness")
+    ap.add_argument("only", nargs="?", help="analyze a single image by key (e.g. DRV_1.2.6)")
+    ap.add_argument("--json", action="store_true", help="emit machine-readable JSON")
+    args = ap.parse_args()
+
+    if not HAS_CAPSTONE:
+        print("[WARN] capstone not installed — disassembly disabled (pip install capstone)", file=sys.stderr)
+
+    items = FIRMWARE_FILES.items()
+    if args.only:
+        if args.only not in FIRMWARE_FILES:
+            print(f"unknown image '{args.only}'. known: {', '.join(FIRMWARE_FILES)}", file=sys.stderr)
+            sys.exit(2)
+        items = [(args.only, FIRMWARE_FILES[args.only])]
+
+    results = [analyze(k, p) for k, p in items]
+    if args.json:
+        print(json.dumps(results, indent=2))
+    else:
+        for r in results:
+            print_report(r)
 
 
 if __name__ == "__main__":

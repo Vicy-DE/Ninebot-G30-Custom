@@ -1,9 +1,19 @@
 # BLE Dashboard — STM32F103C8T6 + nRF51822 Pinout Sheet
 
+> ⚠️ **Provenance correction (2026-06-02).** The `BLE_1.1.0.bin` / `BLE_1.1.7.bin` dumps in
+> `firmware/` are **nRF51822 (Cortex-M0)** application images (reset vector `0x00018154`, Nordic
+> UART0 only, S110 SoftDevice, Xiaomi MiIO strings) — **not** STM32 dashboard firmware. There is
+> **no STM32 dashboard dump** in this repository. The STM32 pin table below is therefore
+> **reference-design / community-derived and UNVERIFIED against firmware**, not "extracted from BLE
+> firmware analysis" as previously stated. The nRF51822 section (MCU 2) *is* firmware-backed.
+> See [`firmware/decompiled/RE_FINDINGS.md`](../../firmware/decompiled/RE_FINDINGS.md) and
+> [`Documentation/VERIFICATION_REPORT.md`](../../Documentation/VERIFICATION_REPORT.md).
+
 ## MCU 1: STM32F103C8T6 (LQFP-48) — Main Dashboard Controller
 
-Extracted from BLE_1.1.0 and BLE_1.1.7 firmware analysis (peripheral register references,
-baud rate configuration, decompiled initialization code, and ADC channel usage).
+**Source: reference design / community knowledge (NOT firmware-verified — see note above).**
+The typical STM32 dashboard pin mapping is documented below for orientation; treat every row as
+unconfirmed until a genuine STM32 BLE-board dump is obtained.
 
 ### Pin Assignment Table
 
@@ -79,16 +89,13 @@ baud rate configuration, decompiled initialization code, and ADC channel usage).
 | CH0 (PA0) | PA0 | Throttle position (hall sensor / pot) | ~400 (idle) – ~3400 (full) |
 | CH1 (PA1) | PA1 | Brake lever pressure sensor | ~500 (released) – ~3200 (full) |
 
-### UART Baud Rate Configuration (from firmware analysis)
+### UART Baud Rate Configuration
 
-| USART | BRR Value | Clock | Baud Rate | Occurrences |
-|-------|-----------|-------|-----------|-------------|
-| USART1 | 0x0271 | 72 MHz (APB2) | 115200 | 5 refs |
-| USART1 | 0x1388 | 72 MHz (APB2) | 9600 | 1 ref (fallback/init?) |
-| USART2 | 0x0139 | 36 MHz (APB1) | 115200 | 1 ref |
-| USART2 | 0x0138 | 36 MHz (APB1) | 115200 (alt) | 3 refs |
-
-> The 9600 baud reference suggests a brief low-speed init phase or a fallback mode.
+> ⚠️ **Retracted.** A previous version of this section claimed BRR `0x0271`/`0x0139` "BRR refs from
+> firmware analysis." Those were **coincidental 2-byte matches inside the nRF51822 image** (which
+> has no STM32 USART peripheral), not STM32 USART configuration. No STM32 baud evidence exists for
+> this board. Expected values (115200 8N1: `0x0271` @72 MHz APB2, `0x0139` @36 MHz APB1) are
+> standard but **unverified here**.
 
 ---
 

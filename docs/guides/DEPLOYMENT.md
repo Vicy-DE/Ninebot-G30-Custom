@@ -1,7 +1,3 @@
----
-applyTo: "**"
----
-
 # Deployment Strategy — Ninebot G30 Max Custom Firmware
 
 ## Overview

@@ -81,7 +81,7 @@ ctest --output-on-failure
 ./firmware_tests
 ```
 
-**Current test results: 86 tests, 86 passed, 0 failed.**
+**Current test results: 134 tests, 134 passed, 0 failed** (g++ 15.2; includes nRF51822 + binary-equivalence). Plus the standalone byte-verified decompilation test `tests/test_decompiled_protocol.cpp` (35/35) — see `DECOMPILATION.md`.
 
 ## Decompiled Firmware Details
 
@@ -145,9 +145,9 @@ Protocol bridge between phone app (via nRF51822) and ESC:
 
 Packet format: `[0x5A][0xA5][LEN][SRC][DST][CMD][ARG][PAYLOAD...][CHK_LO][CHK_HI]`
 
-- **LEN** = payload_size + 6 (includes SRC, DST, CMD, ARG, and 2-byte checksum)
-- **Checksum** = bitwise NOT of sum of bytes from LEN through end of payload
-- **Commands:** READ (0x01), WRITE (0x02), READ_RESPONSE (0x03), WRITE_ACK (0x05)
+- **LEN** = payload byte count (firmware-verified; full frame = LEN + 9). See `DECOMPILATION.md`.
+- **Checksum** = bitwise NOT of sum of bytes from LEN through end of payload (`~Σ & 0xFFFF`)
+- **Commands:** READ (0x01), WRITE (0x02 / 0x03) — confirmed from the DRV_1.6.13 CMD jump table
 
 ## Simulator
 
@@ -165,7 +165,7 @@ The simulator provides host-PC implementations of all hardware interfaces:
 
 ## Test Suite
 
-86 tests covering all firmware behaviors:
+134 tests covering all firmware behaviors:
 
 - **Protocol:** Checksum calculation, packet build/parse, TX queue, round-trip
 - **ESC:** Register defaults, riding modes, lock, error bits, protocol R/W, watchdog, uptime

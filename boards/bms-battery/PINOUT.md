@@ -62,7 +62,7 @@ baud rate configuration, I2C usage, and decompiled initialization code).
 
 | Peripheral | Configuration | Function |
 |------------|--------------|----------|
-| **I2C1** | Standard mode (100kHz) or Fast mode (400kHz) | BQ76940 AFE communication |
+| **I2C (BQ76940)** | ⚠️ hardware I2C1 **not evidenced** in `BMS_1.7.4.5` (no `0x40005400`/`0x40005410` literal) — BQ76940 access is **likely software/bit-banged** on PB6/PB7, or in unanalyzed code | BQ76940 AFE communication |
 | **USART1** | 115200 8N1 (BRR=0x0271) | Debug / factory test UART |
 | **USART2** | 115200 8N1 (BRR=0x0139) | ESC mainboard communication |
 | **ADC1** | Single-channel, 12-bit | NTC temperature readings |
@@ -91,12 +91,16 @@ baud rate configuration, I2C usage, and decompiled initialization code).
 
 ### I2C Connection
 
+> ⚠️ Pin assignment is design-derived. Firmware RE found **no STM32 hardware-I2C1 register use** in
+> `BMS_1.7.4.5`; the BQ76940 link is most likely **bit-banged I2C on GPIO PB6/PB7**. See
+> [`firmware/decompiled/RE_FINDINGS.md`](../../firmware/decompiled/RE_FINDINGS.md) §4.
+
 | Parameter | Value |
 |-----------|-------|
 | I2C Address | 0x08 (7-bit) |
-| SCL Pin | PB6 (via I2C1) |
-| SDA Pin | PB7 (via I2C1) |
-| Clock Speed | 100 kHz (standard mode) |
+| SCL Pin | PB6 (bit-banged or I2C1 SCL) |
+| SDA Pin | PB7 (bit-banged or I2C1 SDA) |
+| Clock Speed | ~100 kHz |
 
 ### BQ76940 Pin Assignments (to battery pack)
 

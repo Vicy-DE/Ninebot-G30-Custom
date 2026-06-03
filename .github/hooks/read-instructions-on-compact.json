@@ -1,5 +1,0 @@
-{
-    "event": "PreCompact",
-    "command": "powershell -Command \"Write-Output (ConvertTo-Json @{systemMessage='After compaction, read the file .github/instructions/index.instructions.md to restore your context about the mandatory workflow, coding conventions, and project structure.'})\"",
-    "description": "Ensures the agent re-reads the master instruction file after conversation compaction"
-}
