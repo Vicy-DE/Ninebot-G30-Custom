@@ -1,5 +1,24 @@
 # Change Log — Ninebot G30 Max Custom Firmware
 
+## [2026-06-03] Power latch: Daly cuts VESC power on OFF, button wakes it (+ schematic)
+
+### What was changed
+- `docs/POWER_LATCH_SCHEMATIC.md` — Created: always-on **Power-Latch Controller** design + block schematic + netlist + state machine + BOM + variants, so the **Daly discharge FET is the master power switch** (long-press → `0xD9 OFF` → cut; button → `S1` wake + `0xD9 ON`)
+- `vesc-lisp/g30_dash.lisp` — Added a **keep-alive** GPIO (ADC2): asserted HIGH at boot and on turn-on, driven LOW on long-press OFF (with motor disable) so the PLC commands the Daly to cut power
+- `docs/WIRING_PLAN_DALY_VESC.md` — Cleaned up: §4 power-button now describes the real Daly cutoff, §6 reframed around the PLC (+ optional read-only telemetry), BOM + wiring ToDo updated
+
+### Why it was changed
+User request: a solution where the Daly BMS actually cuts the VESC's power at power-off and the power button turns it back on — plus a schematic and a documentation cleanup.
+
+### What it does / expected behaviour
+Solves the cold-start latch problem (an unpowered VESC/dashboard can't sense the button) with a tiny always-on controller tapped from raw B+/B−. Long-press → VESC drops keep-alive → PLC sends Daly `0xD9 OFF` → discharge FET opens → VESC power cut → BMS sleeps (~µA). Short press from off → PLC pulses Daly `S1` (wake) + `0xD9 ON` → VESC powers → lisp re-asserts keep-alive. Daly frames and S1 wake are firmware/community-confirmed.
+
+### Verified
+- Build: N/A (hardware design + additive lisp)
+- Flash: N/A
+- UART Monitor: N/A
+- Functional: Deep-researched & cited — Daly `0xD9` ON `A5 40 D9 08 01..C7` / OFF `..00..C6`, S1 active-low wake; soft-latch references for the fallback variant
+
 ## [2026-06-03] Daly BMS + VESC + dashboard wiring plan (deep-researched) + PPM backlight
 
 ### What was changed

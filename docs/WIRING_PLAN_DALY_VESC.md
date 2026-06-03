@@ -66,7 +66,7 @@ BLE dashboard (original cable only) · backlight switched from the **VESC PPM/se
 | 4 | **MOSFET driver / trigger module** | logic-level (3.3 V) input, N-ch low-side, ≥light voltage & current, PWM-capable | switches the light from PPM |
 | 5 | Light (head + back) | 12 V or battery-voltage LED | illumination |
 | 6 | Buck (light/12 V) *(if 12 V light)* | 100 V→12 V, ≥light current | powers a 12 V light |
-| 7 | Buck (dashboard 5 V) *(optional)* | **MP9486** 100 V→5 V 2 A | only if not using VESC 5 V (see §5) |
+| 7 | **Power-Latch Controller** *(for Daly on/off)* | always-on **MP9486** 100 V→5 V + 3V3 LDO + tiny MCU (ATtiny/RP2040) | Daly cuts VESC power on long-press, button wakes — **see [`POWER_LATCH_SCHEMATIC.md`](POWER_LATCH_SCHEMATIC.md)** |
 | 8 | **XT90** connectors | 90 A | battery↔BMS↔VESC power |
 | 9 | **MT60** connector | 3-phase bullet | motor phases |
 | 10 | JST-**PH 2.0 6-pin** | matches VESC sensor port | Hall sensor |
@@ -170,14 +170,18 @@ Because only the **VESC ↔ dashboard** original cable exists (no dashboard→BM
 | **Single press** (when on) | **toggle the light** (drives the PPM output, §3.6) |
 | **Double press** | cycle speed mode Sport→Eco→Drive |
 | **Double press + brake held** | toggle **lock** |
-| **Long press (~6 s)** | **off** — motor disabled, light off, low-power state |
+| **Long press (~6 s)** | **off** — the Daly opens its discharge FET and **cuts VESC power** (see below) |
 
-**True power-off / standby:** with only these three units and no dashboard→BMS link, "off" is a software
-low-power state (VESC idles at ~2.5–4 W). To fully cut power use **one of**:
-- the **Daly BMS** Bluetooth app / its own button to disable discharge, or
-- a **manual XT90 disconnect** or key switch on the main line, or
-- *(optional, not via the dashboard)* a **VESC↔Daly UART/CAN** link so the VESC commands the Daly
-  discharge-FET off on long-press — see §6.
+**True power-off (Daly cuts the VESC) + wake-on-button:** a small always-on **Power-Latch Controller**
+makes the **Daly discharge FET the master switch** — long-press → Daly `0xD9 OFF` → VESC power cut →
+BMS sleeps (~µA); short press from off → Daly `S1` wake + `0xD9 ON` → VESC powers. This solves the
+cold-start problem (an unpowered VESC/dashboard can't sense the button). **Full design + schematic:
+[`POWER_LATCH_SCHEMATIC.md`](POWER_LATCH_SCHEMATIC.md).** The Lisp already drives the **keep-alive**
+(VESC ADC2): HIGH = stay on, dropped to LOW on long-press so the latch cuts power.
+
+> Simpler fallbacks if you don't add the latch: the **Daly Bluetooth app / its own button**, or a
+> **manual XT90 disconnect**. Without the latch, long-press is only a software low-power state (VESC
+> still idles ~2.5–4 W).
 
 ---
 
@@ -192,20 +196,17 @@ basic design keeps the VESC always powered, so the VESC 5 V is sufficient.
 
 ---
 
-## 6. Optional: VESC ↔ Daly link (accurate SoC + hardware off)
+## 6. Power-Latch Controller (Daly = master switch) + optional telemetry
 
-Not required (the dashboard battery % comes from the VESC's voltage estimate, `(get-batt)`), but if you
-want true cell-level SoC and a hardware power-cut on long-press:
+The recommended power solution is the **Power-Latch Controller (PLC)** — a tiny always-on board that
+owns the Daly **UART** (`0xD9` discharge control, 9600 8N1) and the Daly **`S1`** wake pin, senses the
+button, and handshakes the VESC **keep-alive** (ADC2). It makes the **Daly cut VESC power on
+long-press** and **wake on a button press**. Full design, state machine, BOM, and **schematic**:
+**[`POWER_LATCH_SCHEMATIC.md`](POWER_LATCH_SCHEMATIC.md)**.
 
-| Daly | VESC |
-|------|------|
-| UART **TX** | VESC second UART **RX** (or CAN H/L if using CAN) |
-| UART **RX** | VESC second UART **TX** |
-| GND | GND |
-
-Daly UART: **9600 8N1**, `0xA5` framed; discharge-FET control is **command `0xD9`**. A Lisp extension
-could read SoC and, on long-press, send `0xD9` to open the discharge FET (full 0 W standby). This adds a
-cable **between VESC and Daly only** (still nothing extra to the dashboard).
+**Optional telemetry:** if you also want cell-level SoC on the dashboard, give the VESC its own
+read-only tap of the Daly UART (or CAN) — but the PLC must remain the sole **writer** of `0xD9` to avoid
+bus contention. Without telemetry, the dashboard battery % uses the VESC voltage estimate `(get-batt)`.
 
 ---
 
@@ -230,6 +231,9 @@ instead of a servo pulse, drive the PPM pin as GPIO instead (commented alternati
       **button→RX (pull-up)**. **Add no other dashboard wires.**
 - [ ] Wire **VESC servo/PPM → MOSFET driver IN**, driver **GND→GND**, driver **V+→12 V buck (or battery)**,
       driver **OUT→Light−**, **Light+→supply**.
+- [ ] **Power latch** (for Daly on/off — see [`POWER_LATCH_SCHEMATIC.md`](POWER_LATCH_SCHEMATIC.md)):
+      always-on MP9486 from raw **B+/B−**; PLC ↔ Daly **UART** + **S1**; splice **BTN** to PLC btn-in;
+      wire **VESC ADC2 → PLC keep-alive**. Add an **XT90-S / pre-charge** for inrush.
 - [ ] Multimeter checks (battery still disconnected): no B+↔B− short, no 5 V↔GND short, phases not shorted.
 - [ ] **VESC Tool first (USB, no battery):** App Settings → ADC **Off**; enable **Servo Output**; PPM
       Control Type **Off**; set battery **Cells = 20**, cutoff start/end (e.g. 60 V/57 V), current limits.

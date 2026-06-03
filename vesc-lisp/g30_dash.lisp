@@ -44,6 +44,13 @@
 (gpio-configure 'pin-rx 'pin-mode-in-pu)
 (app-adc-detach 3 1) ; use software ADC override
 
+; Power-latch keep-alive: HIGH tells the Power-Latch Controller to keep the Daly
+; discharge FET on; LOW (set on long-press OFF) makes the PLC send Daly 0xD9 OFF,
+; cutting VESC power. Use any free lisp GPIO. See docs/POWER_LATCH_SCHEMATIC.md.
+(def pin-keepalive 'pin-adc2)
+(gpio-configure pin-keepalive 'pin-mode-out)
+(gpio-write pin-keepalive 1)   ; assert keep-alive at boot
+
 ; TX frame buffer (15 bytes for display update)
 (define tx-frame (array-create 15))
 (bufset-u16 tx-frame 0 0x5AA5)  ; Ninebot header
@@ -285,6 +292,7 @@
             {
                 (set 'off 0)
                 (set 'feedback 1)
+                (gpio-write pin-keepalive 1)   ; re-assert keep-alive (stay powered)
                 (apply-mode)
             }
             (set 'light (bitwise-xor light 1))
@@ -322,6 +330,10 @@
                 (set 'off 1)
                 (set 'light 0)
                 (set 'feedback 1)
+                (update-light)                     ; turn the light off now
+                (app-disable-output -1)            ; stop the motor before power cut
+                (set-current 0)
+                (gpio-write pin-keepalive 0)       ; request power-off: PLC sends Daly 0xD9 OFF → cut
                 (apply-mode)
             }
         )
