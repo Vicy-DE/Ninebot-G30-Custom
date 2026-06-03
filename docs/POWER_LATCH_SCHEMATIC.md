@@ -165,16 +165,104 @@ Pick any free lisp-addressable VESC GPIO if ADC2 is unavailable on your board
 
 ## 6. Variants / trade-offs
 
-| Variant | Daly cuts power? | Parts | Determinism | When to use |
-|---------|:----------------:|-------|-------------|-------------|
-| **A — PLC + UART `0xD9` (recommended, above)** | ✅ yes | MP9486 + tiny MCU | high | the requested behaviour, reliable |
-| **B — No-MCU, S1 wake only** | ✅ if your Daly *restores discharge on wake* | MP9486 + transistor | model-dependent | only if your Daly re-enables discharge after S1 wake — **verify first** |
-| **C — Hardware soft-latch P-FET load switch** | ❌ external FET cuts (Daly = protection) | ≥100 V P-FET soft-latch | high | simplest/most robust if you don't need the Daly itself to switch |
+| Variant | Daly cuts power? | Extra MCU? | When to use |
+|---------|:----------------:|:----------:|-------------|
+| **D — Dashboard-as-keeper + dual-purpose wires (RECOMMENDED, §7)** | ✅ yes | **none** | this project (we already build custom dashboard FW); mirrors the stock scooter |
+| **A — Power-Latch Controller + UART `0xD9` (§2–§5)** | ✅ yes | yes (tiny) | if you keep **stock** dashboard FW |
+| **B — No-MCU, S1 wake only** | ✅ if your Daly *restores discharge on wake* | none | only if your Daly re-enables discharge after S1 wake — **verify first** |
+| **C — Hardware soft-latch P-FET load switch** | ❌ external FET cuts (Daly = protection) | none | simplest/most robust if the Daly itself need not switch |
 
 Variant C is the classic ebike "soft power switch" (P-FET high-side + keep-alive); see the Hackaday/
-Mosaic references. It does **not** meet "the Daly cuts the power," so it's listed only as a fallback.
+Mosaic references. **Solution D (below) is the elegant fit for this build** — no added MCU, uses the
+custom dashboard as the always-on brain exactly like the original scooter.
 
 ---
+
+## 7. Solution D (recommended): the dashboard is the keeper — no extra MCU
+
+### How the original G30 solves it
+On the stock scooter the **dashboard is the always-on master**. It sits in a deep-sleep micro-power
+state powered from a tiny standby rail, **wakes on the power-button**, then brings the rest of the bus
+up and tells it to sleep again on power-off. The ESC/BMS don't watch the button themselves — the
+dashboard does, and it *commands* power. We reproduce exactly that: the **dashboard (running our custom
+energy-efficient firmware) becomes the keeper**, so no separate controller is needed.
+
+The trick is that the dashboard only has its **original 4-wire cable**, yet must (a) stay alive, (b)
+talk to the **VESC** (115200 Ninebot) *and* (c) talk to the **Daly** (9600, `0xD9`) + wake it (`S1`).
+We get there by **repurposing the 4 wires** — "ugly but it fits":
+
+| Orig wire | Stock use | New use (Solution D) |
+|-----------|-----------|----------------------|
+| 1 — **5V** | dashboard power (from ESC) | **always-on** 5 V from a low-Iq HV rail off raw **B+** (or the Daly UART VCC if always-on) |
+| 2 — **GND** | ground | ground |
+| 3 — **DATA** | Ninebot half-duplex | **VESC only**, 115200 Ninebot half-duplex (stays clean) |
+| 4 — **BUTTON** | button sense to ESC | **dashboard GPIO → bit-banged 9600 → Daly RX + Daly S1** (stays clean) |
+
+The dashboard reads the **physical button internally** (its own PB12) — it no longer needs to export the
+button on a wire — which frees wire 4 to become the dashboard's **Daly control line**. One wire does
+double duty: a 9600 `0xD9` frame's leading edges also drive `S1` low, so **transmitting the command also
+wakes the BMS**. Each device sees only its own protocol (no cross-baud garbage on either bus).
+
+### Solution D schematic
+
+```
+   20S pack  B+ ●───────────────┬─────────────────────────► Daly B+
+                                 │
+                    ┌────────────┴────────────┐
+                    │ low-Iq HV rail 84V→5V    │  (always live, before discharge FET;
+                    │ (or Daly UART VCC)       │   ~tens of µA quiescent target)
+                    └────────────┬─────────────┘
+                                 │ 5V_AON
+   ── original 4-wire dashboard cable (only cables to the dashboard) ──
+        w1 5V_AON ─────────────► Dashboard VDD (always on)
+        w2 GND    ─────────────► GND
+        w3 DATA   ───┬─────────► VESC COMM data (115200 Ninebot, half-duplex)
+        w4 BTNCTL ───┼───┐
+                     │   └─────► Daly  S1   (active-LOW wake)
+                     │   └─────► Daly  RX   (9600 8N1, bit-banged 0xD9 frames)
+                     │
+   ┌─────────────────┴───────────────────────────────────────────┐
+   │  Dashboard  (STM32, custom energy-efficient firmware)        │
+   │   • physical power button on internal PB12 (EXTI wake)       │
+   │   • STOP-mode sleep (~µA) when OFF                            │
+   │   • ON  : bit-bang Daly 0xD9 ON on w4 (edges pulse S1 → wake) │
+   │           → Daly discharge closes → VESC powers              │
+   │   • OFF : (long-press) bit-bang Daly 0xD9 OFF on w4          │
+   │           → Daly opens discharge → VESC power cut            │
+   │   • forwards button/throttle/brake to VESC as Ninebot frames │
+   │     on w3; renders VESC telemetry (frame 0x64)               │
+   └──────────────────────────────────────────────────────────────┘
+        Daly P+/P− ──XT90(100A ANL)──► VESC (powered only when discharge on)
+        VESC: g30_dash.lisp (throttle/brake/mode), light on PPM (§ wiring plan)
+```
+
+### Power-on / power-off sequence (Solution D)
+1. **OFF:** Daly discharge open (asleep, ~µA). VESC unpowered. **Dashboard alive** in STOP on `5V_AON`,
+   watching PB12.
+2. **Press:** dashboard wakes → bit-bangs **`A5 40 D9 08 01 … C7`** on w4 (the start-bit edges also pull
+   `S1` low → Daly wakes) → discharge closes → **VESC powers**.
+3. **Run:** dashboard talks 115200 Ninebot to the VESC on w3 (throttle/brake/mode/telemetry); VESC runs
+   `g30_dash.lisp`; light on the PPM driver.
+4. **Long-press:** dashboard bit-bangs **`A5 40 D9 08 00 … C6`** on w4 → **Daly opens discharge → VESC
+   power cut** → dashboard returns to STOP.
+
+### Firmware responsibilities (Solution D)
+- **Dashboard (custom FW, `firmware/decompiled/ble`):** STOP-mode sleep + button-EXTI wake; a soft 9600
+  UART on the w4 GPIO that emits the two `0xD9` frames; button/throttle/brake → Ninebot frames to the
+  VESC on w3; render telemetry. (This is the natural home for the keeper logic — it's what the stock
+  dashboard does.)
+- **VESC (`g30_dash.lisp`):** unchanged motor/throttle/brake/mode/light logic. The ADC2 **keep-alive**
+  added earlier is **not needed** in Solution D (the dashboard owns on/off) — leave it unconnected, or
+  keep it as a redundant cross-check.
+
+### Notes / "ugly but fits" caveats
+- **One always-on part remains** — the µA HV rail (or the Daly's always-on UART VCC). True zero-draw
+  still needs a manual disconnect for long storage.
+- **w4 dual use** (S1 + 9600 Daly-RX): verify the Daly tolerates the start-bit edges as `S1` pulses
+  (it does — `S1` just wants a LOW to wake; a UART frame provides plenty). If your Daly's `S1` needs a
+  longer hold, precede the frame with a short LOW break.
+- If you prefer to keep **stock dashboard firmware**, use **Solution A** (the PLC) instead — same Daly
+  behaviour, at the cost of one tiny MCU.
 
 ## Sources
 - Daly discharge control & frames (`0xD9` ON/OFF), S1 "button activation" wake:

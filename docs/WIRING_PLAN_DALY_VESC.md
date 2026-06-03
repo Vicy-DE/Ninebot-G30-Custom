@@ -172,16 +172,16 @@ Because only the **VESC ↔ dashboard** original cable exists (no dashboard→BM
 | **Double press + brake held** | toggle **lock** |
 | **Long press (~6 s)** | **off** — the Daly opens its discharge FET and **cuts VESC power** (see below) |
 
-**True power-off (Daly cuts the VESC) + wake-on-button:** a small always-on **Power-Latch Controller**
-makes the **Daly discharge FET the master switch** — long-press → Daly `0xD9 OFF` → VESC power cut →
-BMS sleeps (~µA); short press from off → Daly `S1` wake + `0xD9 ON` → VESC powers. This solves the
-cold-start problem (an unpowered VESC/dashboard can't sense the button). **Full design + schematic:
-[`POWER_LATCH_SCHEMATIC.md`](POWER_LATCH_SCHEMATIC.md).** The Lisp already drives the **keep-alive**
-(VESC ADC2): HIGH = stay on, dropped to LOW on long-press so the latch cuts power.
+**True power-off (Daly cuts the VESC) + wake-on-button.** Like the **stock scooter**, the **dashboard is
+the always-on keeper**: running our custom energy-efficient firmware it sleeps in STOP (~µA), wakes on
+the button, and commands the Daly. Using only the original 4 wires (one repurposed as a 9600 Daly
+control line that also pulses the Daly `S1` wake), it sends Daly **`0xD9 ON`** to power up and **`0xD9
+OFF`** (long-press) to **cut the VESC** — no extra MCU. **Full design + schematic + the stock-scooter
+analysis: [`POWER_LATCH_SCHEMATIC.md`](POWER_LATCH_SCHEMATIC.md) — Solution D (recommended).**
 
-> Simpler fallbacks if you don't add the latch: the **Daly Bluetooth app / its own button**, or a
-> **manual XT90 disconnect**. Without the latch, long-press is only a software low-power state (VESC
-> still idles ~2.5–4 W).
+> If you keep **stock** dashboard firmware, use **Solution A** there instead: a tiny always-on
+> Power-Latch Controller doing the same `0xD9`/`S1` control (the Lisp's ADC2 keep-alive feeds it).
+> Simpler still: the **Daly Bluetooth app / its button**, or a **manual XT90 disconnect**.
 
 ---
 

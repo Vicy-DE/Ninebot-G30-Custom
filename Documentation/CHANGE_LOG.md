@@ -1,5 +1,22 @@
 # Change Log — Ninebot G30 Max Custom Firmware
 
+## [2026-06-03] Power latch — Solution D: dashboard-as-keeper, no extra MCU
+
+### What was changed
+- `docs/POWER_LATCH_SCHEMATIC.md` — Added "how the original G30 solves it" + **Solution D (recommended)**: the custom energy-efficient **dashboard is the always-on keeper** (mirrors stock). With only the original 4 wires — one repurposed as a bit-banged 9600 Daly control line that also pulses `S1` — the dashboard sends Daly `0xD9 ON/OFF` to power the VESC up/down. Includes schematic, sequence, FW responsibilities, and re-ranked variants table (D recommended; A = PLC for stock dashboard FW).
+- `docs/WIRING_PLAN_DALY_VESC.md` — §4 power-button updated to present Solution D as the recommended approach.
+
+### Why it was changed
+Per the request to think like the stock scooter and use the given components creatively (UART-as-Y, always-on efficient dashboard) instead of adding hardware. Removes the extra MCU from the recommended path.
+
+### What it does / expected behaviour
+Dashboard (STM32 custom FW) sleeps in STOP (~µA), wakes on its internal power button, and drives the Daly over a repurposed cable wire: `0xD9 ON` (+ `S1` wake via the frame edges) to power up, `0xD9 OFF` on long-press to make the **Daly cut VESC power**. w3 stays clean 115200 Ninebot to the VESC; w4 stays clean 9600 to the Daly — each device sees only its own protocol. No added MCU; the PLC (Solution A) remains the fallback for stock dashboard firmware.
+
+### Verified
+- Build: N/A (hardware/firmware design)
+- Flash: N/A
+- Functional: Design grounded in the stock keeper architecture + the same firmware-confirmed Daly `0xD9`/`S1` primitives
+
 ## [2026-06-03] Power latch: Daly cuts VESC power on OFF, button wakes it (+ schematic)
 
 ### What was changed
