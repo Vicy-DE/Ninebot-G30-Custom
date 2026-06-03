@@ -1,5 +1,24 @@
 # Change Log — Ninebot G30 Max Custom Firmware
 
+## [2026-06-03] Dashboard + BLE firmware design; improved protocol; app APK disassembled
+
+### What was changed
+- `docs/BLE_PROTOCOL_VERIFIED.md` — Created: BLE protocol verified by **disassembling the official Segway-Ninebot app** (`com.ninebot.segway` XAPK: base RN/Hermes + `config.arm64_v8a.apk` native libs) cross-checked with the nRF51 firmware RE. Native codec `libnbenc_ffi.so` (`is_frame_header_AA55`, `nb_encrypt`, AES-ECB/RC4/MD5, `Key_rule_analysis`) + JNI `cn.ninebot.nbcrypto.NbEncryption` (`setKey`/`setAuthParam`). Transport = Nordic UART Service; two app generations (legacy MiIO vs current nbcrypto AES).
+- `docs/PROTOCOL_V2.md` — Created: **NB+** improved protocol (CRC-16/CCITT, 16-bit length, versioning, seq/ACK, STREAM telemetry, HELLO negotiation) that **coexists** with stock `5A A5` (distinct `5A A6` header) so the app stays compatible.
+- `docs/DASHBOARD_FIRMWARE.md` — Created: STM32 dashboard firmware design (always-on keeper, Ninebot⇄VESC bridge, Daly soft-UART, speed-cap removal, Haystack mode commands) per Req 1/2/4/13 + Solution D.
+- `docs/NRF51_BLE_FIRMWARE.md` — Created: nRF51 BLE firmware design (S130, dual NUS for app + VESC Tool, framing+auth backends MiIO/nbcrypto, FindMy Haystack, mode SM) per Req 3/15, grounded in the verified protocol.
+
+### Why it was changed
+User request: read the requirements, design the dashboard + BLE firmware, design an improved protocol, make the BLE firmware compatible with the original app, and download+disassemble the official app to verify the BT protocol (downloading the needed tools).
+
+### What it does / expected behaviour
+The BLE↔app path stays **stock Ninebot over NUS** (app-compatible, verified against the real APK); the improved **NB+** protocol rides the internal/VESC path and coexists on the same bus. The dashboard is the always-on keeper that bridges Ninebot⇄VESC and controls the Daly; the nRF51 firmware bridges the app (NUS + MiIO/nbcrypto auth), exposes VESC Tool over a second NUS, and emulates a FindMy tag in sleep.
+
+### Verified
+- Build: N/A (design docs)
+- Flash: N/A
+- Functional: **App APK downloaded (337 MB) and disassembled** — Ninebot protocol codec + AES/RC4/MD5 crypto confirmed in `libnbenc_ffi.so`/`libnbcrypto.so`; GATT UUIDs are delivered via the runtime RN bundle (transport = NUS from firmware RE). Tools downloaded: apktool 2.9.3.
+
 ## [2026-06-03] Power latch — Solution D: dashboard-as-keeper, no extra MCU
 
 ### What was changed
