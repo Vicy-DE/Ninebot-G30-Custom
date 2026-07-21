@@ -72,3 +72,6 @@ gdbserver.log
 
 # JetBrains
 .idea/
+
+# Third-party VESC Tool binaries (downloaded, ~1.2 GB — not source)
+tools/vesc/

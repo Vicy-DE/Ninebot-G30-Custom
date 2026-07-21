@@ -49,26 +49,37 @@ Phone App
 
 ```
 Ninebot-G30-Custom/
-├── ESC-MotorController/        # Motor controller (ESC/DRV) PCB
-│   ├── datasheets/             # MCU and power component datasheets
-│   ├── firmware/               # Stock DRV firmware dumps (.bin)
-│   └── README.md               # ESC hardware documentation
-├── BLE-Dashboard/              # Bluetooth dashboard (BLE) PCB
-│   ├── datasheets/             # MCU and BLE SoC datasheets
-│   ├── firmware/               # Stock BLE firmware dumps (.bin)
-│   └── README.md               # BLE hardware documentation
-├── BMS-BatteryManagement/      # Battery management system (BMS) PCB
-│   ├── datasheets/             # MCU and AFE datasheets
-│   ├── firmware/               # Stock BMS firmware dumps (.bin)
-│   └── README.md               # BMS hardware documentation
-├── docs/                       # General documentation
-│   ├── protocol.md             # Communication protocol reference
-│   ├── firmware-flashing.md    # How to flash firmware
-│   └── resources.md            # Links and community resources
-├── .github/
-│   └── copilot-instructions.md # Copilot context instructions
+├── CLAUDE.md                   # Agent operating manual (Claude Code)
+├── boards/                     # Per-board hardware docs, datasheets, stock dumps
+│   ├── esc-motor/              #   ESC/DRV motor controller (STM32F103CBT6)
+│   ├── ble-dashboard/          #   BLE dashboard (STM32F103C8T6 + nRF51822)
+│   └── bms-battery/            #   Battery management (STM32F103C8T6 + BQ76940)
+│       ├── datasheets/         #   MCU / AFE / power-stage datasheets (PDF)
+│       ├── firmware/           #   Stock firmware dumps (.bin)
+│       ├── PINOUT.md           #   Pin assignment sheet
+│       └── README.md           #   Board hardware documentation
+├── docs/                       # Protocol & reverse-engineering reference
+│   ├── protocol.md             #   Ninebot UART protocol reference
+│   ├── iap-update-protocol.md  #   Stock IAP update protocol
+│   ├── firmware-flashing.md    #   Flashing guide
+│   ├── resources.md            #   Community links and tools
+│   ├── guides/                 #   BUILD / DEBUG / DEPLOYMENT / HARDWARE / CODING guides
+│   └── VESC_INSTALL_GUIDE.md   #   VESC install + power-management docs
+├── bootloader/                 # Custom secure bootloader (STM32 + nRF51)
+├── firmware/                   # Decompiled/reconstructed firmware + RE_FINDINGS.md
+├── lib/ninebot-protocol/       # Ninebot protocol C++ library
+├── tools/                      # PC-side tools (signing / flasher / analysis / vesc)
+├── vesc-lisp/                  # VESC Lisp motor-control scripts
+├── Target/                     # Hardware integration/test scripts
+├── Documentation/              # Living docs: PROJECT_DOC, CHANGE_LOG, Requirements, ToDo, Tests
+├── .claude/                    # Claude Code config (commands, agents, settings, hooks)
 └── README.md                   # This file
 ```
+
+> **Firmware-dump note:** the `boards/ble-dashboard/firmware/BLE_*.bin` files are **nRF51822**
+> (Cortex-M0) BLE-SoC images, *not* STM32 dashboard firmware. `BMS_1.3.4.bin` is encrypted.
+> See [`Documentation/VERIFICATION_REPORT.md`](Documentation/VERIFICATION_REPORT.md) and
+> [`firmware/decompiled/RE_FINDINGS.md`](firmware/decompiled/RE_FINDINGS.md).
 
 ## Key Resources
 

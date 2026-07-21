@@ -121,6 +121,82 @@
 | **Board** | VESC |
 | **Requirements** | VESC Lisp script running on VESC hardware provides the bridge between the G30 dashboard and VESC motor control. Reads dashboard throttle (byte 5) and brake (byte 6) from Ninebot protocol frame 0x65 (sent by BLE STM32). Sends display updates via frame 0x64 (mode, battery, light, beep, speed, error fields). Ninebot protocol: 0x5AA5 header, CRC = XOR 0xFFFF of byte sum from offset 2. Supports eco/drive/sport speed modes, headlight control, lock function, and power button handling. Throttle stays at the dashboard — script reads ADC values relayed via protocol, not direct ADC. Reference implementations: CRZX1337/g30-vesc-dash, m365fw/vesc_m365_dash. |
 
+## 15. OpenHaystack AirTag Emulation — Apple FindMy
+
+| Item | Detail |
+|---|---|
+| **Module / Component** | `firmware/decompiled/nrf51822/` |
+| **Interface** | BLE (non-connectable advertising), UART (mode command from STM32) |
+| **Board** | nRF51822 |
+| **Requirements** | The nRF51822 must be able to emulate an Apple AirTag using the OpenHaystack protocol, making the scooter trackable via Apple's Find My network without any Apple hardware. This feature must remain active while the rest of the scooter is in deep sleep (STM32 in STOP mode, VESC `app-disable-output`). |
+
+**15.1 — BLE Advertisement Format**
+
+The nRF51822 must broadcast non-connectable undirected BLE advertisements (`ADV_NONCONN_IND`) matching Apple FindMy format. Each advertisement payload must contain:
+- Length `0x1E`, Type `0xFF` (manufacturer-specific data)
+- Apple company ID `0x004C`
+- FindMy type byte `0x12`, length `0x19`
+- Status byte (key-roll indicator + reserved)
+- 22-byte compressed ECDH P-224 public key (bytes 06–27 of the full 28-byte public key)
+- Upper 2 bits of the public key as the first byte after the header
+- Hint byte (last byte of the public key)
+
+**15.2 — Rolling Key Schedule**
+
+- A pre-generated set of at minimum 96 rolling public keys must be stored in nRF51 application flash (96 keys × 28 bytes = 2,688 bytes — well within the 80 KB application region).
+- Keys are indexed by the current advertisement period. One key is active per 900-second window (15 minutes), matching the Apple FindMy rotation schedule.
+- The nRF51 must maintain a persistent period counter in UICR or a dedicated flash page (survives power loss and reboot).
+- Key generation (deriving the key set from a single private seed + OpenHaystack tooling) is a one-time offline step executed on PC; only public keys are stored on device.
+
+**15.3 — Mode Switching**
+
+The nRF51822 operates in two mutually exclusive modes:
+
+| Mode | Active When | BLE Behaviour | UART |
+|---|---|---|---|
+| `NRF51_MODE_NORMAL` | Scooter running/awake | Ninebot BLE protocol + VESC App NUS | Active (receives protocol frames from STM32) |
+| `NRF51_MODE_HAYSTACK` | Scooter sleeping | FindMy advertising only | Inactive (STM32 is in STOP mode) |
+
+STM32 must send a single-byte UART command `0xAA` to nRF51 before entering STOP mode. nRF51 receives this command, terminates any active BLE connections, stops the VESC App NUS service, and starts non-connectable FindMy advertising. On STM32 wake-up, STM32 must send command `0xAB` to nRF51 to return to `NRF51_MODE_NORMAL`.
+
+**15.4 — Advertising Interval in Sleep Mode**
+
+In `NRF51_MODE_HAYSTACK` the advertising interval must be configurable between 2,000 ms (minimum per Apple FindMy spec) and 10,240 ms. Default: **5,000 ms**. Longer intervals reduce average current at the cost of network detection latency. At 5,000 ms interval with DCDC enabled, expected average current: ~4–8 µA.
+
+**15.5 — SoftDevice Requirement**
+
+SoftDevice S130 v2.0.1 is required (already planned in Req 3). S130 supports the broadcaster role (`BLE_GAP_ADV_TYPE_ADV_NONCONN_IND`) needed for FindMy.
+
+**15.6 — Coexistence in Normal Mode**
+
+In `NRF51_MODE_NORMAL`, FindMy advertising may optionally continue between VESC App advertising events, space permitting within SoftDevice scheduling windows. This is optional and must not degrade VESC App BLE throughput.
+
+**15.7 — Power Saving Integration**
+
+The FindMy feature is the primary reason to keep the nRF51822 powered during scooter sleep, rather than cutting its supply. The power budget during scooter sleep:
+
+| Component | Sleep Current |
+|---|---|
+| STM32 (STOP mode) | ~10 µA |
+| VESC (`app-disable-output`, 3.3V LDO standby) | ~1–5 mA |
+| nRF51822 (FindMy advertising, 5 s interval, DCDC) | ~4–8 µA |
+| Daly BMS (standby) | ~1 mA |
+| **Total** | **~2–7 mA** |
+
+The dominant sleep consumer is the VESC standby draw. Cutting VESC power during extended park would be the largest saving; the nRF51 cost is negligible.
+
+**15.8 — Implementation Options Summary**
+
+Three options were evaluated for how the nRF51 remains active during sleep:
+
+| Option | Description | Hardware change | Complexity |
+|---|---|---|---|
+| **A (selected)** | STM32 sends UART mode-switch command (`0xAA`/`0xAB`) before/after sleep | None | Low — one UART byte |
+| B | nRF51 auto-detects UART inactivity >5 s and self-transitions | None | Medium — timeout state machine |
+| C | STM32 drives dedicated GPIO to nRF51 to signal sleep state | 1 wire | Low — GPIO + IRQ |
+
+Option A is selected: explicit software commands are more deterministic than inactivity timeouts and require no extra hardware.
+
 ---
 
 ## Traceability Matrix
@@ -141,3 +217,4 @@
 | 12 | Deployment Phase Support | 5, 6, 7, 8 |
 | 13 | Daly BMS Compatibility | 2 |
 | 14 | VESC Lisp Motor Control | 1 |
+| 15 | OpenHaystack AirTag Emulation | 3, 6 |

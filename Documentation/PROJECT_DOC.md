@@ -1,6 +1,6 @@
 # Project Documentation — Ninebot G30 Max Custom Firmware
 
-**Last updated:** 2026-03-28
+**Last updated:** 2026-06-02
 **Toolchain:** arm-none-eabi-gcc (Cortex-M3 / Cortex-M0)
 **Targets:** STM32F103C8T6 (BLE, BMS), nRF51822 (BLE Bluetooth)
 
@@ -86,7 +86,7 @@ python tools/signing/sign_firmware.py --input build/ble_app.bin --output build/b
 
 ## 7. Deployment Strategy
 
-See [DEPLOYMENT_STRATEGY.instructions.md](../.github/instructions/DEPLOYMENT/DEPLOYMENT_STRATEGY.instructions.md) for full details.
+See [docs/guides/DEPLOYMENT.md](../docs/guides/DEPLOYMENT.md) for full details.
 
 | Phase | Action | Reversible |
 |-------|--------|------------|
@@ -104,7 +104,11 @@ BMS custom firmware is out of scope — stock BMS works fine. BLE firmware suppo
 - VESC UART bridge protocol integration not yet implemented
 - nRF51822 VESC App BLE service not yet implemented
 - Stock bootloader IAP behavior still being reverse engineered
-- BLE firmware binaries may be nRF51822 images, not STM32 (needs verification)
+- ✅ **Resolved (2026-06-02):** the `BLE_*.bin` dumps **are** nRF51822 (Cortex-M0) images, not STM32
+  — confirmed by re-disassembly (reset `0x00018154`, Nordic UART0, S110 SoftDevice, MiIO). No STM32
+  dashboard dump exists. See `Documentation/VERIFICATION_REPORT.md` and `firmware/decompiled/RE_FINDINGS.md`.
+- `BMS_1.3.4.bin` is encrypted (XiaoTEA) — decryption needed before it can be analyzed.
+- BMS BQ76940 link shows no hardware-I2C1 use → likely bit-banged (to confirm).
 - Daly BMS protocol support not yet implemented
 
 ## 9. Revision History
@@ -112,3 +116,4 @@ BMS custom firmware is out of scope — stock BMS works fine. BLE firmware suppo
 | Date | Summary |
 |---|---|
 | 2026-03-28 | Project converted from documentation-only to software development project |
+| 2026-06-02 | Migrated agent config to Claude Code; firmware re-disassembled & verified (BLE=nRF51 confirmed, BMS_1.3.4 encrypted); docs corrected. See VERIFICATION_REPORT.md |

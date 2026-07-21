@@ -44,6 +44,13 @@
 (gpio-configure 'pin-rx 'pin-mode-in-pu)
 (app-adc-detach 3 1) ; use software ADC override
 
+; Power-latch keep-alive: HIGH tells the Power-Latch Controller to keep the Daly
+; discharge FET on; LOW (set on long-press OFF) makes the PLC send Daly 0xD9 OFF,
+; cutting VESC power. Use any free lisp GPIO. See docs/POWER_LATCH_SCHEMATIC.md.
+(def pin-keepalive 'pin-adc2)
+(gpio-configure pin-keepalive 'pin-mode-out)
+(gpio-write pin-keepalive 1)   ; assert keep-alive at boot
+
 ; TX frame buffer (15 bytes for display update)
 (define tx-frame (array-create 15))
 (bufset-u16 tx-frame 0 0x5AA5)  ; Ninebot header
@@ -85,11 +92,29 @@
 )
 
 ; ---------------------------------------------------------------------------
+; Backlight / headlight on the VESC PPM/servo output (GPIOB5)
+; ---------------------------------------------------------------------------
+; The light is switched by a MOSFET driver module fed from the servo/PPM pin.
+; Enable "Servo Output" in VESC Tool (App Settings -> General) and set the PPM
+; app Control Type = Off. set-servo 1.0 = light on, 0.0 = off.
+; See docs/WIRING_PLAN_DALY_VESC.md §3.6 / §7.
+;
+; Alternative (clean GPIO level instead of a servo pulse) — uncomment if your
+; MOSFET module needs a static high/low rather than a servo PWM pulse:
+;   (gpio-configure 'pin-ppm 'pin-mode-out)
+;   (defun update-light () (gpio-write 'pin-ppm (if (= off 1) 0 light)))
+
+(defun update-light ()
+    (set-servo (if (and (= off 0) (= light 1)) 1.0 0.0))
+)
+
+; ---------------------------------------------------------------------------
 ; Output control (lock, off)
 ; ---------------------------------------------------------------------------
 
 (defun handle-features ()
     {
+        (update-light)
         (if (or (= off 1) (= lock 1) (< (* (get-speed) 3.6) min-speed))
             (if (not (app-is-output-disabled))
                 {
@@ -267,6 +292,7 @@
             {
                 (set 'off 0)
                 (set 'feedback 1)
+                (gpio-write pin-keepalive 1)   ; re-assert keep-alive (stay powered)
                 (apply-mode)
             }
             (set 'light (bitwise-xor light 1))
@@ -304,6 +330,10 @@
                 (set 'off 1)
                 (set 'light 0)
                 (set 'feedback 1)
+                (update-light)                     ; turn the light off now
+                (app-disable-output -1)            ; stop the motor before power cut
+                (set-current 0)
+                (gpio-write pin-keepalive 0)       ; request power-off: PLC sends Daly 0xD9 OFF → cut
                 (apply-mode)
             }
         )

@@ -1,5 +1,12 @@
 # Ninebot G30 Max — Communication Protocol Reference
 
+> ✅ **Firmware-verified (2026-06-02).** The `5A A5` header framing, the device address scheme
+> (`0x20`/`0x21`/`0x22`/`0x3E`), the `sum ^ 0xFFFF` checksum, and 115200 8N1 were confirmed by
+> re-disassembling the stock dumps — the identical header state machine appears in the ESC (`DRV`,
+> 3×), BMS (`BMS_1.7.4.5`, 1×) and nRF51 BLE (1×) firmware. The register-map tables below are
+> documented/community-sourced and only **partially** reconstructed from firmware. Evidence:
+> [`firmware/decompiled/RE_FINDINGS.md`](../firmware/decompiled/RE_FINDINGS.md).
+
 ## Overview
 
 The Ninebot G30 Max uses a proprietary serial protocol for communication between all boards (ESC, BLE, BMS) and with external devices (phone app, PC tools). This protocol is shared across many Ninebot/Segway products (ES, Max, F-series, etc.) with minor variations.
@@ -32,7 +39,7 @@ Every packet follows this structure:
 | Field | Size | Description |
 |---|---|---|
 | **Header** | 2 bytes | Always `0x5A 0xA5` — start of packet marker |
-| **Length (bLen)** | 1 byte | Number of bytes from SrcAddr to end of Payload (inclusive). `bLen = 2 + 1 + 1 + payload_length` |
+| **Length (bLen)** | 1 byte | **Payload byte count only.** Firmware-verified against `buildPacket`/`parseProtocolByte` in DRV_1.6.13: `LEN = payload_length`; full frame = `LEN + 9` bytes (2 header + LEN + 1 len + 4 SRC/DST/CMD/ARG + 2 checksum), and the parser's expected body after the header = `LEN + 7`. See `firmware/decompiled/DECOMPILATION.md`. |
 | **Source Address** | 1 byte | Address of the sending device |
 | **Destination Address** | 1 byte | Address of the receiving device |
 | **Command (bCmd)** | 1 byte | Command type (read, write, etc.) |
@@ -63,14 +70,17 @@ Reading ESC serial number (register 0x10) from app:
 
 ```
 5A A5        # Header
-06           # Length: 4 bytes (SrcAddr, DstAddr, Cmd, Arg) + 2 payload = 6
+02           # Length = payload byte count = 2 (the "0E 00" below). Frame total = 2 + 9 = 11 bytes.
 3E           # Source: App (0x3E)
 20           # Destination: ESC (0x20)
 01           # Command: Read
 10           # Argument: Register 0x10 (serial number)
-0E 00        # Payload: Read 14 bytes
-XX XX        # Checksum (2 bytes, little-endian)
+0E 00        # Payload (2 bytes): request 14 (0x0E) bytes
+7C FF        # Checksum (2 bytes, little-endian) = ~(02+3E+20+01+10+0E+00) = 0xFF7C
 ```
+
+> The LEN byte counts **only the payload** (here `0E 00` → `02`), not SRC/DST/CMD/ARG. This is the
+> firmware-verified convention (a previous revision of this doc incorrectly wrote `06`).
 
 ## Device Addresses
 
@@ -93,6 +103,11 @@ XX XX        # Checksum (2 bytes, little-endian)
 | **Write Response** | `0x02` | Acknowledgment of write command |
 
 ## ESC Register Map (DRV)
+
+> 📓 **Authoritative map: [`REGISTER_MAP.md`](REGISTER_MAP.md)** (sourced from etransport/ninebot-docs,
+> mechanism firmware-confirmed). The table below is a simplified legacy view and contains known errors
+> for the G30 — e.g. `0x3A` is *session operation time* (not battery voltage; voltage is `0x48`),
+> `0x7B` is *KERS level* (not speed limit; speed limits are `0x73/0x74`). Prefer REGISTER_MAP.md.
 
 ### Read-Only Registers
 
@@ -126,6 +141,11 @@ XX XX        # Checksum (2 bytes, little-endian)
 | `0x7B` | 2 | Speed limit setting | model-dependent |
 
 ## BMS Register Map
+
+> 📓 **Authoritative map: [`REGISTER_MAP.md`](REGISTER_MAP.md).** The legacy table below mis-places
+> several fields for the G30: the **cell-voltage block is `0x40–0x49`** (not `0x30–0x39`), pack
+> **voltage is `0x34`** (×10 mV), **current `0x33`**, **SoC% `0x32`**, remaining mAh `0x31`. Prefer
+> REGISTER_MAP.md.
 
 | Register | Size | Description | Unit |
 |---|---|---|---|

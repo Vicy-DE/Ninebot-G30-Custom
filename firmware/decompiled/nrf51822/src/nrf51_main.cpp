@@ -454,7 +454,7 @@ void Nrf51Firmware::parseUartByte(uint8_t byte)
 
         /* First byte = LEN */
         if (uartParser_.rxIndex == 0) {
-            uartParser_.expectedLength = byte + 1;  /* +1 for header overhead */
+            uartParser_.expectedLength = byte + 7;  /* expected body = LEN + 7 (LEN=payload) */
             if (uartParser_.expectedLength > 249) {
                 uartParser_.reset();
                 return;
@@ -504,7 +504,7 @@ void Nrf51Firmware::parseBleByte(uint8_t byte)
         bleParser_.rxBuffer[bleParser_.rxIndex] = byte;
 
         if (bleParser_.rxIndex == 0) {
-            bleParser_.expectedLength = byte + 1;
+            bleParser_.expectedLength = byte + 7;  /* expected body = LEN + 7 (LEN=payload) */
             if (bleParser_.expectedLength > 249) {
                 bleParser_.reset();
                 return;
@@ -575,7 +575,7 @@ void Nrf51Firmware::verifyAndDispatch(
         pkt.destination   = parser.rxBuffer[2];
         pkt.command       = parser.rxBuffer[3];
         pkt.argument      = parser.rxBuffer[4];
-        pkt.payloadLength = (pkt.length > 6) ? pkt.length - 6 : 0;
+        pkt.payloadLength = (pkt.length <= NB_MAX_PAYLOAD) ? pkt.length : 0;  /* LEN = payload count */
         pkt.checksum      = recv;
         if (pkt.payloadLength > 0 && pkt.payloadLength <= NB_MAX_PAYLOAD) {
             std::memcpy(pkt.payload, &parser.rxBuffer[5], pkt.payloadLength);
@@ -636,7 +636,7 @@ void Nrf51Firmware::enqueuePacket(
 
     pkt.push_back(NB_HEADER_1);   /* 0x5A */
     pkt.push_back(NB_HEADER_2);   /* 0xA5 */
-    pkt.push_back(payloadLen + 6); /* LEN */
+    pkt.push_back(payloadLen);     /* LEN = payload count */
     pkt.push_back(src);            /* SRC */
     pkt.push_back(dst);            /* DST */
     pkt.push_back(cmd);            /* CMD */
