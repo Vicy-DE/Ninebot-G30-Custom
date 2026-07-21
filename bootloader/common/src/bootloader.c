@@ -9,7 +9,7 @@
  * Boot flow:
  *   1. platform_init()     → clocks, UART, GPIO
  *   2. Check update trigger → flag, button, invalid app
- *   3. If update → XMODEM receive, validate .sfw, flash, reboot
+ *   3. If update → NBU receive, validate .sfw, flash, reboot
  *   4. If no update → verify app, jump
  *
  * Inspired by the RC-Servo bootloader architecture.
@@ -17,42 +17,55 @@
 
 #include "platform.h"
 #include "fw_header.h"
-#include "xmodem.h"
+#include "nbu.h"
 #include "sha256.h"
 #include "ecdsa.h"
 #include "crc32.h"
 #include <string.h>
+
+/* ── Bus address (Ninebot) for framed NBU updates ──────────────────────── */
+
+/** Map the SFW target id to its Ninebot bus address (0x20 ESC/0x21 BLE/0x22 BMS). */
+static uint8_t my_bus_addr(void)
+{
+    switch (platform_get_target_id()) {
+    case SFW_TARGET_BMS_STM32: return 0x22;
+    case SFW_TARGET_BLE_STM32: /* fall-through: nRF51 is reached via the BLE STM32 */
+    case SFW_TARGET_NRF51822:  return 0x21;
+    default:                   return 0x21;
+    }
+}
 
 /* ── ECDSA public key (provided by platform) ──────────────────────────── */
 
 /* Key is embedded in platform-specific code and accessed via
  * platform_get_ecdsa_pubkey(). */
 
-/* ── Receive state for XMODEM streaming ────────────────────────────────── */
+/* ── Receive state for NBU streaming ───────────────────────────────────── */
 
 static sfw_header_t g_sfw_header;
 static uint32_t g_flash_write_addr;
 static int g_header_complete;
 static int g_write_error;
 
-/* ── XMODEM block handler ──────────────────────────────────────────────── */
+/* ── NBU block handler ─────────────────────────────────────────────────── */
 
 /**
- * @brief Handle each 128-byte XMODEM block as it arrives.
+ * @brief Handle each accepted in-order NBU data chunk as it arrives.
  *
  * First 256 bytes are accumulated into the .sfw header buffer.
  * Subsequent bytes are written directly to flash at the app region.
  *
- * @param[in] data      Pointer to block data.
- * @param[in] offset    Byte offset of this block in the stream.
- * @param[in] length    Number of valid bytes in this block.
+ * @param[in] data      Pointer to chunk data.
+ * @param[in] offset    Cumulative byte offset of this chunk in the .sfw stream.
+ * @param[in] length    Number of valid bytes in this chunk.
  * @param[in] user_ctx  Unused context pointer.
  * @return 0 on success, -1 on flash write error.
  *
  * @sideeffects Writes received firmware data to flash.
  */
-static int xmodem_block_handler(const uint8_t *data, uint32_t offset,
-                                 uint32_t length, void *user_ctx)
+static int nbu_block_handler(const uint8_t *data, uint32_t offset,
+                             uint32_t length, void *user_ctx)
 {
     (void)user_ctx;
     uint32_t i;
@@ -97,27 +110,27 @@ static int xmodem_block_handler(const uint8_t *data, uint32_t offset,
     return 0;
 }
 
-/* ── XMODEM I/O callbacks (route through platform) ─────────────────────── */
+/* ── NBU I/O callbacks (route through platform) ────────────────────────── */
 
-static void xmodem_uart_send(uint8_t byte)
+static void nbu_uart_send(uint8_t byte)
 {
     platform_uart_send_byte(byte);
 }
 
-static int xmodem_uart_recv(uint8_t *byte, uint32_t timeout)
+static int nbu_uart_recv(uint8_t *byte, uint32_t timeout)
 {
     return platform_uart_recv_byte(byte, timeout);
 }
 
-static uint32_t xmodem_get_tick(void)
+static uint32_t nbu_get_tick(void)
 {
     return platform_get_tick_ms();
 }
 
-static const xmodem_io_t xmodem_io = {
-    .uart_send_byte = xmodem_uart_send,
-    .uart_recv_byte = xmodem_uart_recv,
-    .get_tick_ms    = xmodem_get_tick,
+static const nbu_io_t nbu_io = {
+    .uart_send_byte = nbu_uart_send,
+    .uart_recv_byte = nbu_uart_recv,
+    .get_tick_ms    = nbu_get_tick,
 };
 
 /* ── Firmware update mode ──────────────────────────────────────────────── */
@@ -126,8 +139,8 @@ static const xmodem_io_t xmodem_io = {
  * @brief Enter firmware update mode.
  *
  * Announces the bootloader on UART, erases application flash,
- * receives a .sfw file via XMODEM-CRC, validates the header,
- * checks CRC-32, verifies the ECDSA-P256-SHA256 signature,
+ * receives a .sfw file via the NBU framed half-duplex protocol, validates the
+ * header, checks CRC-32, verifies the ECDSA-P256-SHA256 signature,
  * and reboots on success.
  *
  * On any failure, the app region is erased so the bootloader
@@ -140,15 +153,15 @@ static void enter_update_mode(void)
 {
     uint32_t total_received = 0;
     sfw_result_t result;
-    xmodem_result_t xresult;
+    nbu_result_t xresult;
 
     /* Print bootloader banner */
     platform_uart_puts("\r\n[BOOT] Secure Bootloader v1.0\r\n");
     platform_uart_puts("[BOOT] Target: ");
     platform_uart_puts(platform_get_target_name());
     platform_uart_puts("\r\n");
-    platform_uart_puts("[BOOT] Waiting for .sfw file via XMODEM-CRC...\r\n");
-    platform_uart_puts("[BOOT] Send file now (XMODEM-CRC, 128-byte blocks)\r\n");
+    platform_uart_puts("[BOOT] Waiting for .sfw via NBU (framed half-duplex)...\r\n");
+    platform_uart_puts("[BOOT] Send file now: nbu_send.py @115200 8N1\r\n");
 
     /* Initialize receive state */
     memset(&g_sfw_header, 0, sizeof(g_sfw_header));
@@ -164,12 +177,12 @@ static void enter_update_mode(void)
     }
     platform_uart_puts("[BOOT] Erase complete.\r\n");
 
-    /* Receive .sfw via XMODEM-CRC */
-    xresult = xmodem_receive(&xmodem_io, xmodem_block_handler,
-                              NULL, &total_received);
+    /* Receive .sfw via the NBU framed half-duplex protocol */
+    xresult = nbu_receive(&nbu_io, my_bus_addr(), nbu_block_handler,
+                          NULL, &total_received);
 
-    if (xresult != XMODEM_OK) {
-        platform_uart_puts("[BOOT] ERROR: XMODEM transfer failed (");
+    if (xresult != NBU_OK) {
+        platform_uart_puts("[BOOT] ERROR: NBU transfer failed (");
         uint8_t err_char = '0' + (uint8_t)(-(int)xresult);
         platform_uart_send_byte(err_char);
         platform_uart_puts(")\r\n");
@@ -252,7 +265,7 @@ int main(void)
     if (platform_update_requested()) {
         platform_clear_update_flag();
 
-        /* Enter XMODEM update mode — retry on failure */
+        /* Enter NBU update mode — retry on failure */
         for (;;) {
             enter_update_mode();
 

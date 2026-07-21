@@ -87,11 +87,11 @@ python tools/flasher/ninebot_flasher.py --port COM3 --target ble --firmware buil
 python tools/flasher/ninebot_flasher.py --port COM3 --target bms --firmware build/bms_app.bin
 ```
 
-### Step 3: Flash via XMODEM (custom bootloader present)
+### Step 3: Flash via NBU (custom bootloader present)
 
 ```powershell
-# Flash signed firmware via XMODEM through VESC passthrough
-python tools/flasher/xmodem_send.py --port COM3 --target ble --firmware build/ble_app.sfw
+# Flash signed firmware via NBU through VESC passthrough
+python tools/flasher/nbu_send.py --port COM3 --target ble-stm32 --file build/ble_app.sfw
 ```
 
 ---
@@ -138,8 +138,8 @@ Or if in update mode:
 ```
 [BOOT] Secure Bootloader v1.0
 [BOOT] Target: BLE-STM32
-[BOOT] Waiting for .sfw file via XMODEM-CRC...
-[BOOT] Send file now (XMODEM-CRC, 128-byte blocks)
+[BOOT] Waiting for .sfw file via NBU...
+[BOOT] Send file now (NBU, framed half-duplex)
 ```
 
 ### Protocol Sniffing
@@ -179,7 +179,7 @@ python tools/flasher/ninebot_flasher.py --port COM3 --read-register 0x22 0x30 20
 - VESC communication (motor response)
 
 ### Check 4: Rollback capability
-- Verify the board can still enter IAP/XMODEM update mode
+- Verify the board can still enter IAP/NBU update mode
 - Confirm the update trigger (button hold or software flag) works
 - Test with a known-good firmware image
 
@@ -195,7 +195,7 @@ python tools/flasher/ninebot_flasher.py --port COM3 --read-register 0x22 0x30 20
 | Bootloader loops | App signature invalid | Re-flash with signed .sfw file |
 | SWD connection fails | Read protection set | Full chip erase via STM32CubeProgrammer |
 | VESC passthrough fails | Wrong command syntax | Use exact string "UPDATE BLE\n" |
-| XMODEM timeout | UART not connected to bootloader | Verify board is in bootloader mode |
+| NBU timeout | UART not connected to bootloader | Verify board is in bootloader mode |
 | Flash verify fails | Power glitch during write | Re-flash, ensure stable power |
 
 ---

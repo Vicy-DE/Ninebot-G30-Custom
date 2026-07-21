@@ -80,3 +80,30 @@
 - Exhaustive register-dispatch reconstruction (P5) from `DRV`/`BMS` for a fully firmware-derived register map.
 - Confirm BMS BQ76940 I2C is bit-banged (PIN5) by locating the GPIO toggle routine.
 - STM32 dashboard pinout cannot be verified until a real STM32 BLE-board dump is obtained.
+
+---
+
+## 8. Live-hardware confirmation (2026-06-15)
+
+Bus and protocol confirmed on the **actual G30 scooter** using the NUCLEO-C542RC software-UART rig
+(bit-banged UART, no hardware USART; capture read back over SWD). Full method and traces:
+[`../boards/ble-dashboard/C542_BUS_CAPTURE.md`](../boards/ble-dashboard/C542_BUS_CAPTURE.md).
+
+| # | Claim | Result | Evidence |
+|---|-------|--------|----------|
+| HW1 | Bus is 115200 8N1, `5A A5` framing, `sum(LEN..payload)^0xFFFF` checksum | ✅ | Captured + checksum-valid on the live bus (measured bit ≈ 416 cyc @ 48 MHz → 115385 baud). |
+| HW2 | **LEN = payload byte count** (not `4+payload`, not `SrcAddr..Payload`) | ✅ | Live frame `5A A5 05 21 20 65 00 04 28 22 02 00 04 FF`: LEN `05` = the 5 payload bytes `04 28 22 02 00`, checksum `04 FF` valid. |
+| HW3 | Addresses `0x20` ESC / `0x21` BLE-dashboard / `0x22` BMS / `0x3E` App / `0x3F` PC | ✅ | Captured frame is dashboard (SRC `0x21`) → ESC (DST `0x20`); dashboard is bus master on this wire. |
+| HW4 | Runtime `0x65` (dash→ESC throttle/brake) + `0x64` (ESC→dash telemetry) frames | ✅ | RE'd from `vesc-lisp/g30_dash.lisp`, confirmed live. `0x64` payload = mode/batt/light/beep/speed/error; **error `0` = no fault**. |
+| HW5 | Replying with `0x64` (error=0) clears the dashboard "ESC missing" comm-fault | ✅ | With the C542 emulating the ESC, the dashboard stopped retrying and began emitting its own `0x64` frames — verified on hardware. |
+| HW6 | Enter-update is **CMD `0x57`/`0x59`, UID-password-gated** (not "write reg 0x78") | ✅ | Disassembled `DRV_1.2.6`/`BMS_1.7.4.5` (`App_to_ESC_handler @0x08005624`, tbb @`0x08005650`). CMD `0x57` password = `~(UID0+UID1+UID2) ‖ ~(UID0·UID1·UID2)` (two 32-bit LE words) from the STM32 96-bit UID @`0x1FFFF7E8` (referenced @vma `0x08005478`). Valid password → `0x5A5A` IAP marker (DRV `0x0801C000`, BMS `0x0800F000`) → `NVIC_SystemReset`. CMD `0x18` is **calibration** (sub-cmd `0x12` + `"N4G"`), not reset. Zero-password `0x57/0x58/0x59/0x5C` were all ignored on hardware → the gate is real. |
+| HW7 | BLE identity = **`G30LD` (D8:68:BA:16:A0:33)** = Nordic UART Service + Xiaomi MiIO `0xfe95` | ✅ | Read live over PC Bluetooth (`tools/ble_ninebot.py`): NUS `6e400001`; MiIO chars 0x0001 control, 0x0004 beaconkey, 0x0010 auth, 0x0013 token, 0x0014 device-id; product id `0x035C`. |
+| HW8 | The nRF51 relays NUS↔STM32 **only after the MiIO secure handshake** | ✅ | Live: connected and read MiIO info chars, but raw `5A A5` / MiIO-control / dummy-auth writes got **zero notifications** unauthenticated — the relay is keyed by the device's MiIO registration token. |
+| HW9 | **Two-channel authentication wall** — flashing the dashboard is locked both ways by design | ✅ | Wired ESC bus needs the chip-UID password (CMD `0x57`, HW6); BLE needs the MiIO registration token (HW8). Both are per-device secrets, **not derivable** from the bus or an unauthenticated BLE read. |
+
+**Net result:** the bus electrical + protocol layer is now measured fact on the live scooter (not
+reference-derived). The dashboard read/write/telemetry path, comm-fault recovery, and enter-update
+mechanism are fully reverse-engineered. The remaining blocker to flashing the stock dashboard is a
+single per-device secret on each channel (chip UID for wired, MiIO token for BLE) — see
+[`../docs/BLE_PROTOCOL_VERIFIED.md`](../docs/BLE_PROTOCOL_VERIFIED.md) and
+[`../docs/protocol.md`](../docs/protocol.md).

@@ -3,7 +3,7 @@
  * @brief Minimal nRF51822 register definitions for bootloader.
  *
  * Only includes peripherals used by the bootloader:
- *   - UART0 (for XMODEM communication)
+ *   - UART0 (for NBU update communication)
  *   - NVMC (flash programming)
  *   - CLOCK (HFCLK startup)
  *   - GPIO (pin configuration)

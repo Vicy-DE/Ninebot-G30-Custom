@@ -9,8 +9,10 @@
  *      a. Update flag in config flash page
  *      b. Power button held during boot (BLE board only)
  *      c. No valid application detected (invalid vector table)
- *   4. If update triggered → enter XMODEM receive mode
- *      - Receive .sfw file via XMODEM-CRC on USART2
+ *   4. If update triggered → enter NBU receive mode
+ *      - Receive .sfw file via the NBU framed half-duplex protocol on USART2
+ *        (5A A5 Ninebot frames; request→ACK turn-taking — the single-wire bus
+ *        is half-duplex, so a byte-stream protocol like XMODEM is unsuitable)
  *      - Validate header (magic, target, CRC)
  *      - Verify ECDSA-P256-SHA256 signature
  *      - Erase app region and flash new firmware
@@ -28,7 +30,7 @@
 #include "stm32_flash.h"
 #include "stm32_uart.h"
 #include "fw_header.h"
-#include "xmodem.h"
+#include "nbu.h"
 #include "sha256.h"
 #include "ecdsa.h"
 #include "crc32.h"
@@ -49,10 +51,9 @@ static const uint8_t ecdsa_pubkey[ECDSA_P256_PUBKEY_SIZE] = ECDSA_PUBLIC_KEY;
  * Located in SRAM — the STM32F103C8 has 20 KB of SRAM.
  * The .sfw header is 256 bytes, and firmware data streams to flash.
  *
- * Strategy: receive the full .sfw via XMODEM into a large buffer,
- * then validate and flash. With only 20KB SRAM and up to 50KB firmware,
- * we must stream: buffer the header (256 bytes), then write each XMODEM
- * block directly to flash.
+ * Strategy: with only 20KB SRAM and up to 50KB firmware we cannot buffer the
+ * whole image, so we stream: buffer the header (256 bytes), then write each
+ * received NBU data chunk directly to flash.
  */
 
 static sfw_header_t g_sfw_header;
@@ -181,32 +182,26 @@ static int is_app_valid(void)
     return 1;
 }
 
-/**
- * Verify the ECDSA signature of the currently installed application.
- * Re-reads app firmware from flash, computes SHA-256, and checks
- * against the stored signature in the app's own header.
- *
- * The application stores its .sfw header copy at a known offset
- * (last 256 bytes of the app region) for runtime verification.
- *
- * For simplicity, we skip runtime signature verification of existing
- * firmware and only verify during updates. This reduces boot time.
+/*
+ * Secure-boot policy (current): **verify-on-update**. The NBU-received .sfw
+ * is signature-verified (sfw_verify_signature) before it is committed, so only
+ * correctly-signed firmware is ever written to the app region; normal boot then
+ * does only a fast structural check (is_app_valid()). A stronger policy —
+ * **verify-on-every-boot** (re-check the installed app's ECDSA signature before
+ * jumping, so even an SWD-flashed unsigned image is refused) — is a future
+ * option for the "lock to my signed firmware against SWD" goal; it needs the app
+ * to embed its .sfw header at a known offset. See docs/SECURE_BOOT_PLAN.md.
  */
-static int verify_installed_app(void)
-{
-    /* Basic validity check is sufficient for normal boot */
-    return is_app_valid();
-}
 
-/* ── XMODEM write callback ─────────────────────────────────────────────── */
+/* ── NBU write callback ────────────────────────────────────────────────── */
 
 /**
- * Called for each 128-byte XMODEM block received.
+ * Called for each accepted in-order NBU data chunk (cumulative `offset`).
  * First 256 bytes go into the header buffer.
  * Remaining bytes stream directly to flash.
  */
-static int xmodem_block_handler(const uint8_t *data, uint32_t offset,
-                                 uint32_t length, void *user_ctx)
+static int nbu_block_handler(const uint8_t *data, uint32_t offset,
+                             uint32_t length, void *user_ctx)
 {
     (void)user_ctx;
     uint32_t i;
@@ -259,27 +254,27 @@ static int xmodem_block_handler(const uint8_t *data, uint32_t offset,
     return 0;
 }
 
-/* ── XMODEM I/O callbacks ──────────────────────────────────────────────── */
+/* ── NBU I/O callbacks ─────────────────────────────────────────────────── */
 
-static void xmodem_uart_send(uint8_t byte)
+static void nbu_uart_send(uint8_t byte)
 {
     uart_send_byte(byte);
 }
 
-static int xmodem_uart_recv(uint8_t *byte, uint32_t timeout)
+static int nbu_uart_recv(uint8_t *byte, uint32_t timeout)
 {
     return uart_recv_byte(byte, timeout);
 }
 
-static uint32_t xmodem_get_tick(void)
+static uint32_t nbu_get_tick(void)
 {
     return get_tick();
 }
 
-static const xmodem_io_t xmodem_io = {
-    .uart_send_byte = xmodem_uart_send,
-    .uart_recv_byte = xmodem_uart_recv,
-    .get_tick_ms    = xmodem_get_tick,
+static const nbu_io_t nbu_io = {
+    .uart_send_byte = nbu_uart_send,
+    .uart_recv_byte = nbu_uart_recv,
+    .get_tick_ms    = nbu_get_tick,
 };
 
 /* ── Update mode ───────────────────────────────────────────────────────── */
@@ -288,7 +283,7 @@ static const xmodem_io_t xmodem_io = {
  * Enter firmware update mode.
  * 1. Announce bootloader on UART
  * 2. Erase application flash
- * 3. Receive .sfw file via XMODEM-CRC
+ * 3. Receive .sfw file via the NBU framed half-duplex protocol
  * 4. Validate header
  * 5. Verify ECDSA signature
  * 6. If valid: clear flag, reset
@@ -298,7 +293,7 @@ static void enter_update_mode(void)
 {
     uint32_t total_received = 0;
     sfw_result_t result;
-    xmodem_result_t xresult;
+    nbu_result_t xresult;
 
     uart_puts("\r\n[BOOT] Secure Bootloader v1.0\r\n");
 #if TARGET_BOARD == BOARD_BLE_STM32
@@ -306,8 +301,8 @@ static void enter_update_mode(void)
 #elif TARGET_BOARD == BOARD_BMS_STM32
     uart_puts("[BOOT] Target: BMS-STM32\r\n");
 #endif
-    uart_puts("[BOOT] Waiting for .sfw file via XMODEM-CRC...\r\n");
-    uart_puts("[BOOT] Send file now (XMODEM-CRC, 128-byte blocks)\r\n");
+    uart_puts("[BOOT] Waiting for .sfw via NBU (framed half-duplex)...\r\n");
+    uart_puts("[BOOT] Send file now: nbu_send.py @115200 8N1\r\n");
 
     /* Initialize receive state */
     memset(&g_sfw_header, 0, sizeof(g_sfw_header));
@@ -324,12 +319,12 @@ static void enter_update_mode(void)
     }
     uart_puts("[BOOT] Erase complete.\r\n");
 
-    /* Receive .sfw via XMODEM */
-    xresult = xmodem_receive(&xmodem_io, xmodem_block_handler,
-                              NULL, &total_received);
+    /* Receive .sfw via the NBU framed half-duplex protocol */
+    xresult = nbu_receive(&nbu_io, MY_BUS_ADDR, nbu_block_handler,
+                          NULL, &total_received);
 
-    if (xresult != XMODEM_OK) {
-        uart_puts("[BOOT] ERROR: XMODEM transfer failed (");
+    if (xresult != NBU_OK) {
+        uart_puts("[BOOT] ERROR: NBU transfer failed (");
         /* Print error code as ASCII digit */
         uint8_t err_char = '0' + (uint8_t)(-(int)xresult);
         uart_send_byte(err_char);
@@ -435,13 +430,19 @@ static void jump_to_app(void)
 
 int main(void)
 {
+    /* Point the vector table at our own base. For the normal build this is
+     * 0x08000000 (the reset default); for a relocated test build
+     * (BL_BASE_ADDR=0x08004000) this is what makes SysTick/exceptions vector into
+     * the relocated table when the installed bootloader launches us from the app slot. */
+    SCB_VTOR = BOOTLOADER_START;
+
     /* Initialize clocks (HSE → PLL → 72 MHz) */
     clock_init();
 
     /* Initialize SysTick for 1 ms tick */
     systick_init();
 
-    /* Initialize UART for status output and XMODEM */
+    /* Initialize UART for status output and NBU updates */
     uart_init();
 
     /* Enable GPIO clocks for button reading */
@@ -475,7 +476,7 @@ int main(void)
         /* Clear the flag so we don't loop forever on boot */
         flash_clear_update_flag();
 
-        /* Enter XMODEM update mode — blocks until success or timeout */
+        /* Enter NBU update mode — blocks until success or timeout */
         for (;;) {
             enter_update_mode();
 

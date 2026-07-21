@@ -7,7 +7,7 @@
  * The MBR reads UICR.BOOTLOADERADDR to find the bootloader.
  *
  * Update path: PC → USB-UART → VESC → BLE STM32 → UART0 → nRF51822
- * The BLE STM32 enters UART passthrough mode to relay XMODEM to the nRF51822.
+ * The BLE STM32 enters UART passthrough mode to relay NBU frames to the nRF51822.
  */
 
 #ifndef NRF51_BOOTLOADER_CONFIG_H
@@ -83,6 +83,9 @@
 /* ── SFW target ────────────────────────────────────────────────────────── */
 
 #define MY_TARGET_ID            SFW_TARGET_NRF51822
+
+/** Ninebot bus address for framed (NBU) updates — reached via the BLE STM32 relay. */
+#define MY_BUS_ADDR             0x21
 
 /* ── ECDSA public key ──────────────────────────────────────────────────── */
 

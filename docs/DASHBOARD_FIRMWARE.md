@@ -10,6 +10,14 @@ display/inputs. Satisfies Requirements 1, 2, 4, 11, 12, 13 and the power-latch *
 > stock STM32-dashboard dump. This firmware is written from the documented HAL + the verified protocol,
 > not reconstructed from a binary. The STM32 pinout is reference-derived (`boards/ble-dashboard/PINOUT.md`).
 
+> **Implementation status (2026-06-09):** the core logic of the modules below is implemented as
+> header-only, host-tested code (16 tests, suite 150/150): `dash_bridge` →
+> [`ble/include/dash_bridge.h`](../firmware/decompiled/ble/include/dash_bridge.h), `dash_keeper` →
+> [`ble/include/dash_keeper.h`](../firmware/decompiled/ble/include/dash_keeper.h), Daly soft-UART →
+> [`ble/include/daly_soft_uart.h`](../firmware/decompiled/ble/include/daly_soft_uart.h). Remaining:
+> wiring them into `ble_main` against the real STM32 HAL (STOP mode, soft-UART bit-bang timing). App
+> compatibility detail: [`APP_COMPATIBILITY.md`](APP_COMPATIBILITY.md).
+
 ---
 
 ## 1. Responsibilities

@@ -5,6 +5,14 @@
 ARG byte**; `CMD 0x01`=READ (response cmd `0x04`), `CMD 0x02`=WRITE+response, `0x03`=WRITE no-response,
 `0x07–0x09`=firmware update, `0x64`=head I/O. Register-file bases:
 ESC `@0x200007D6`, BMS `@0x20000400` (see `firmware/decompiled/DECOMPILATION.md` §4b/§4d).
+
+> ✅ **Hardware-verified (2026-06-15).** The ARG-indexed 16-bit register-file mechanism, the address
+> scheme, and the live `0x65`/`0x64` head-I/O frames were confirmed on the **live G30 scooter** via the
+> NUCLEO-C542RC software-UART rig, and the application command dispatch
+> (`App_to_ESC_handler @0x08005624`, `tbb` table @`0x08005650`) was disassembled from `DRV_1.2.6` /
+> `BMS_1.7.4.5`. The full command-opcode table (incl. the UID-gated update CMD `0x57`) and the `0x64`
+> telemetry field layout are below. Source:
+> [`../boards/ble-dashboard/C542_BUS_CAPTURE.md`](../boards/ble-dashboard/C542_BUS_CAPTURE.md).
 **Semantics source:** [etransport/ninebot-docs](https://github.com/etransport/ninebot-docs/wiki)
 (ES2 family — the G30 Max shares this protocol). Treat per-register *meanings* as
 **documented/authoritative**; the *access mechanism, CMD codes, and LEN convention are
@@ -62,8 +70,49 @@ firmware-confirmed*. Some G30 registers may differ from ES2 — flagged where kn
 | 0x7C / 0x7D | Cruise control / Tail light | |
 | 0xC6, 0xC8–0xCE | Lamp-strip mode / colors | |
 
-> Extended **CMD** opcodes seen in the ESC dispatch (`tbb` + checks): `0x50/0x57/0x58/0x59/0x5C` =
-> IAP/update/calibration; `0x07–0x0A` = subscribe/stream. These are commands, not registers.
+### Command opcodes (not registers) — firmware-disassembled
+
+These are **`CMD`-byte opcodes** dispatched by `App_to_ESC_handler @0x08005624` (`tbb` table
+@`0x08005650`), distinct from the ARG-indexed register file above:
+
+| CMD | Action |
+|-----|--------|
+| `0x01` | READ `regfile[ARG..]` (response cmd `0x04`) |
+| `0x02` | WRITE `regfile[ARG..]` + response |
+| `0x03` | WRITE `regfile[ARG..]`, no response |
+| `0x07`–`0x0A` | Subscribe / stream register updates |
+| `0x18` | **Calibration** (needs sub-cmd `0x12` + `"N4G"` magic) — **NOT a reset** |
+| `0x50` | Firmware data-block write (IAP) |
+| `0x57` / `0x59` | **Enter firmware update** — UID-password-gated (see below) |
+| `0x58` | Erase / begin-flash (application area) |
+| `0x5C` | Parameter / seed write |
+| `0x64` | Head I/O telemetry (ESC→dashboard; see telemetry layout below) |
+| `0x65` | Head I/O control (dashboard→ESC; throttle/brake) |
+
+> **Enter-update is UID-authenticated.** CMD `0x57` payload =
+> `~(UID0 + UID1 + UID2) ‖ ~(UID0 · UID1 · UID2)` (two 32-bit LE words), computed from the STM32 96-bit
+> chip UID @`0x1FFFF7E8` (referenced at vma `0x08005478`). A valid password sets a RAM flag → the main
+> loop writes a `0x5A5A` "stay in IAP" magic to a flash marker page (DRV `0x0801C000`, BMS `0x0800F000`)
+> → `NVIC_SystemReset` (`AIRCR=0x05FA0004`). Writing "reg `0x78`" does **NOT** reset (unverified
+> convention). See [`protocol.md`](protocol.md) and
+> [`../boards/ble-dashboard/C542_BUS_CAPTURE.md`](../boards/ble-dashboard/C542_BUS_CAPTURE.md).
+
+### 0x64 head-I/O telemetry payload (ESC→dashboard, 6 bytes)
+
+Frame `5A A5 06 20 21 64 00 | mode batt light beep speed error | CK` — hardware-confirmed; sending it
+with `error = 0` clears the dashboard's "ESC missing" comm-fault:
+
+| Offset | Field | Meaning |
+|--------|-------|---------|
+| 0 | `mode` | riding mode (eco/drive/sport) |
+| 1 | `batt` | battery % |
+| 2 | `light` | headlight state |
+| 3 | `beep` | beeper request |
+| 4 | `speed` | km/h while riding (battery % when idle) |
+| 5 | `error` | fault code — **`0` = no fault** |
+
+The reverse `0x65` frame (dashboard→ESC) carries **throttle** (payload byte at frame offset 5) and
+**brake** (byte 6) hall levels.
 
 ---
 

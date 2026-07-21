@@ -8,6 +8,26 @@ speed cap. A custom ECDSA-P256-signed secure bootloader is being developed.
 > This file is the single source of truth for how to work in this repo. Detailed guides live in
 > [`docs/guides/`](docs/guides/); the routine workflow is encoded as `/`-commands in `.claude/commands/`.
 
+## ⚙️ Working style — finish the task (do not stop early, do not ask back)
+
+**Work autonomously until the task is genuinely DONE.** Do everything required — research the web,
+disassemble/RE the firmware dumps, build + flash on the real hardware (ST-Link/CubeProgrammer, the C542
+rig), probe the live scooter, iterate on failures — without pausing to ask permission or to report a
+partial result as a stopping point. A milestone is not a finish line; keep going to the actual goal.
+
+- **Don't ask back** for direction mid-task; pick the most likely path, try it, and if it fails try the
+  next. Only surface a question if you are *truly* blocked by something physically impossible from here
+  (e.g. a wire that must be moved by hand) — and even then, exhaust every software/RE avenue first.
+- **Hardware is in scope and reachable:** the NUCLEO-C542RC (ST-Link/V3 on a COM port) flashes via
+  `STM32_Programmer_CLI` (pyocd/OpenOCD-0.12 don't support STM32C5); the C542 talks the scooter bus with a
+  bit-banged software UART (4×-oversampled RX, push-pull TX, half-duplex turnaround). Reuse the RC-Servo
+  STM32CubeC5 SDK to build real M33 firmware. Use the SRAM mailbox + SWD read-back to drive/observe it.
+- **Keep iterating through dead ends.** Wrong protocol guess → RE it from the firmware dumps and
+  `vesc-lisp/g30_dash.lisp` / community docs. Looks like hardware damage → suspect the build first
+  (e.g. a Makefile that flashes a stale binary). Bus quiet → emulate the ESC to clear the dashboard fault.
+- Still verify safety before destructive flashes (`/verify-safe`, keep backups) and report outcomes
+  faithfully — persistence never means faking a result or skipping the no-brick checks.
+
 ## Architecture
 
 Three boards on a shared Ninebot UART bus (5A A5 header, **115200 8N1**):
@@ -41,7 +61,14 @@ and [`Documentation/VERIFICATION_REPORT.md`](Documentation/VERIFICATION_REPORT.m
   **no STM32 dashboard dump** in the repo, so the STM32 BLE pinout is reference-derived/unverified.
 - **`BMS_1.3.4.bin` is encrypted** (XiaoTEA) — decrypt before analyzing. `BMS_1.7.4.5` is plain STM32.
 - `DRV_*` and `BMS_1.7.4.5` are genuine STM32F103 images, app base `0x08001000`.
-- The **`5A A5` framing, addresses, `sum^0xFFFF` checksum, 115200 8N1 are firmware-confirmed.**
+- The **`5A A5` framing, addresses, `sum^0xFFFF` checksum, 115200 8N1 are firmware-confirmed** — and
+  **bus-confirmed on the live scooter (2026-06-15)** via the C542 tap: **LEN = payload count** (not 4+payload),
+  dashboard transmits SRC `0x21` → ESC `0x20` (`5A A5 05 21 20 65 00 …`). Runtime: `0x65` throttle/brake in,
+  `0x64` telemetry out (error=0 clears the comm-fault). See `boards/ble-dashboard/C542_BUS_CAPTURE.md` +
+  `docs/C542_PROGRAMMER_SCHEMATIC.md`.
+- **Dumping the stock dashboard bootloader is auth-blocked.** Enter-update = **CMD 0x57**, gated by the
+  STM32 **chip UID** (`~Σ‖~Π` of the UID @`0x1FFFF7E8`); BLE (`G30LD`, NUS+MiIO) gated by the MiIO token.
+  Both are device secrets, not on the wire — needs the token, the UID, or a captured real app-update.
 - ESC UART RX is **polled/DMA, not interrupt-driven**; BMS BQ76940 link shows no hardware-I2C1 (likely bit-banged).
 
 ## Conventions
@@ -60,11 +87,19 @@ and [`Documentation/VERIFICATION_REPORT.md`](Documentation/VERIFICATION_REPORT.m
 ## Workflow — after every code change (use the slash commands)
 
 1. `/build` — `cmake --build bootloader/build/<target>`; fix errors first.
-2. `/flash` — stock IAP (`tools/flasher/ninebot_flasher.py`) or XMODEM (`tools/flasher/xmodem_send.py`).
-3. `/verify-hw` — UART monitor @115200 8N1: boot banner, protocol responses, sensors.
-4. `/document` — append `Documentation/CHANGE_LOG.md` + update `Documentation/PROJECT_DOC.md`.
-5. `/test` — generate/run tests in `Target/`, save report in `Documentation/Tests/`.
-6. `/commit` — Conventional Commits. **Never push** (enforced via settings deny-rule).
+2. `/verify-safe` — **MANDATORY after every firmware change, before any flash.**
+   `python tools/verify_firmware_safe.py` must end `VERDICT: SAFE to flash, UPDATE path preserved,
+   SECURE BOOT sound.` It proves the change can't brick (no bootloader/option-byte writes, valid vector,
+   watchdog recovers), the **update path isn't lost** (image is bootloader-loadable → always reflashable),
+   regression tests pass, and **secure boot still verifies** (signed accept / tamper reject, both targets
+   build). If any guarantee fails: **do not flash** — fix it.
+3. `/flash` — stock IAP (`tools/flasher/ninebot_flasher.py`) or NBU framed half-duplex
+   (`tools/flasher/nbu_send.py`) for the custom bootloader. The bus is **one-wire half-duplex**, so the
+   update transport is framed request→ACK (NBU), not a byte-stream like XMODEM.
+4. `/verify-hw` — UART monitor @115200 8N1: boot banner, protocol responses, sensors.
+5. `/document` — append `Documentation/CHANGE_LOG.md` + update `Documentation/PROJECT_DOC.md`.
+6. `/test` — generate/run tests in `Target/`, save report in `Documentation/Tests/`.
+7. `/commit` — Conventional Commits. **Never push** (enforced via settings deny-rule).
 
 **Before a new feature:** `/new-feature` (updates `Documentation/Requirements/requirements.md` +
 creates `Documentation/ToDo/<feature>.md`). **On pin/hardware changes:** `/hardware-change` (read

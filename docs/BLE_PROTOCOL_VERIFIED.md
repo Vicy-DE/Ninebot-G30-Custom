@@ -68,6 +68,43 @@ The **stock nRF51 firmware in this repo (`BLE_1.1.x`) speaks MiIO** — to stay 
 that bonded to *that* hardware, the custom firmware must reproduce the **MiIO** handshake. To target the
 **current** Segway-Ninebot app, it must reproduce the **nbcrypto AES key-rule** handshake instead.
 
+## 4b. Live-device confirmation (real G30 dashboard over PC Bluetooth, 2026-06-15)
+
+The dashboard was connected to from a PC (`tools/ble_ninebot.py`, bleak) on the **live scooter**, which
+confirms the transport, the GATT layout, and that the **MiIO auth gates the NUS relay on real hardware**:
+
+| Property | Value |
+|----------|-------|
+| Advertised name | **`G30LD`** |
+| MAC | **`D8:68:BA:16:A0:33`** |
+| Service — data transport | **Nordic UART Service** (`6e400001-…`) |
+| Service — pairing/auth | **Xiaomi MiIO `0xfe95`** |
+| MiIO product id | **`0x035C`** |
+
+**Exact MiIO `0xfe95` characteristics read on the device:**
+
+| Char UUID (short) | Role |
+|-------------------|------|
+| `0x0001` | control |
+| `0x0004` | beaconkey |
+| `0x0010` | auth |
+| `0x0013` | token |
+| `0x0014` | device-id |
+
+**Verified on hardware:** the connection succeeds and the MiIO info chars (incl. product `0x035C`) read
+fine, but the nRF51 **relays/answers nothing** without the MiIO handshake — raw Ninebot `5A A5` frames,
+MiIO-control `0x0001` writes, and dummy auth writes all produced **zero notifications**. Per the nRF51
+RE, stock `BLE_1.1.x` runs the full MiIO flow (auth challenge → **token login-confirm → cloud bind →
+register**) before bridging NUS↔STM32 (UART0), so the relay is keyed by the device's **MiIO
+registration token** — a per-device secret held in the Xiaomi cloud / the owner's Mi Home account.
+
+> **Two-channel auth wall.** Combined with the wired-bus finding (entering the dashboard bootloader over
+> the ESC bus needs the chip-UID password, CMD `0x57` — see
+> [`protocol.md`](protocol.md) and [`REGISTER_MAP.md`](REGISTER_MAP.md)), the stock dashboard is locked
+> against reflashing **two ways by design**: wired = chip-UID password, BLE = MiIO registration token.
+> Neither secret is derivable from the bus or an unauthenticated BLE read. See
+> [`../Documentation/VERIFICATION_REPORT.md`](../Documentation/VERIFICATION_REPORT.md) §8.
+
 ## 5. What the custom nRF51 firmware must implement (Req 2, 3)
 
 To be **app-compatible**, the custom BLE firmware must, on the BLE side:

@@ -1,0 +1,100 @@
+/*
+ * Linker script TEMPLATE for the STM32F103C8T6 secure bootloader.
+ * Preprocessed by the C preprocessor (see stm32/Makefile) so the flash ORIGIN can
+ * be relocated for a test-before-overwrite build:
+ *
+ *     make TARGET=ble                       -> BL_ORIGIN = 0x08000000 (final location)
+ *     make TARGET=ble BL_BASE=0x08004000    -> BL_ORIGIN = 0x08004000 (app slot, +16 KB)
+ *
+ * Keep this in sync with stm32f103c8_bootloader.ld (the static script used for the
+ * default Makefile target and the CMake build). The only difference is the macro'd
+ * FLASH ORIGIN below; everything else is identical.
+ *
+ * Bootloader region: BL_ORIGIN .. BL_ORIGIN+0x3FFF (16 KB).
+ * Application region starts at BL_ORIGIN+0x4000 (managed by the bootloader, not linked).
+ */
+
+#ifndef BL_ORIGIN
+#define BL_ORIGIN 0x08000000
+#endif
+
+MEMORY
+{
+    /* Bootloader flash: 16 KB at the (possibly relocated) link base */
+    FLASH (rx) : ORIGIN = BL_ORIGIN, LENGTH = 16K
+
+    /* Full SRAM available to bootloader */
+    RAM (rwx)  : ORIGIN = 0x20000000, LENGTH = 20K
+}
+
+/* Entry point */
+ENTRY(Reset_Handler)
+
+SECTIONS
+{
+    /* Vector table — must be at the very start of flash */
+    .isr_vector :
+    {
+        . = ALIGN(4);
+        KEEP(*(.isr_vector))
+        . = ALIGN(4);
+    } > FLASH
+
+    /* Code and read-only data */
+    .text :
+    {
+        . = ALIGN(4);
+        *(.text)
+        *(.text.*)
+        *(.rodata)
+        *(.rodata.*)
+        . = ALIGN(4);
+        _etext = .;
+    } > FLASH
+
+    /* Initialized data — stored in flash, copied to RAM at startup */
+    _sidata = LOADADDR(.data);
+    .data :
+    {
+        . = ALIGN(4);
+        _sdata = .;
+        *(.data)
+        *(.data.*)
+        . = ALIGN(4);
+        _edata = .;
+    } > RAM AT> FLASH
+
+    /* Zero-initialized data */
+    .bss :
+    {
+        . = ALIGN(4);
+        _sbss = .;
+        *(.bss)
+        *(.bss.*)
+        *(COMMON)
+        . = ALIGN(4);
+        _ebss = .;
+    } > RAM
+
+    /* Stack (grows downward from top of RAM) */
+    ._stack :
+    {
+        . = ALIGN(8);
+        _end = .;
+        . = . + 2048;   /* 2 KB min stack */
+        _estack = .;
+    } > RAM
+
+    /* Discard debug info during embedded build */
+    /DISCARD/ :
+    {
+        *(.ARM.exidx)
+        *(.ARM.attributes)
+        *(.comment)
+        *(.note.*)
+    }
+}
+
+/* Verify bootloader fits in 16 KB */
+ASSERT(SIZEOF(.text) + SIZEOF(.isr_vector) + SIZEOF(.data) <= 16K,
+       "Bootloader exceeds 16 KB flash limit!")

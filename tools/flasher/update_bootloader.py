@@ -3,9 +3,9 @@
 update_bootloader.py — Update an existing custom bootloader on a running board.
 
 This tool creates a "bootloader updater" firmware image that can be flashed
-via the custom bootloader's normal XMODEM update path. The updater:
+via the custom bootloader's normal NBU update path. The updater:
 
-  1. Gets flashed as a normal application via XMODEM + ECDSA verification
+  1. Gets flashed as a normal application via NBU + ECDSA verification
   2. On first boot, copies the new bootloader from its embedded data to SRAM
   3. Erases the bootloader flash region (pages 0-15 on STM32, or 0x3C000+ on nRF51)
   4. Writes the new bootloader from SRAM to flash
@@ -13,10 +13,10 @@ via the custom bootloader's normal XMODEM update path. The updater:
   6. Resets into the new bootloader
 
 This is essentially the same as initial_flash.py but it produces a .sfw image
-that can be sent via the custom bootloader's XMODEM-CRC update path.
+that can be sent via the custom bootloader's NBU (framed half-duplex) update path.
 
 Flow:
-  PC → xmodem_send.py → VESC passthrough → board bootloader (XMODEM)
+  PC → nbu_send.py → VESC passthrough → board bootloader (NBU, one-wire half-duplex)
        → bootloader verifies .sfw signature
        → writes updater app to app region
        → boots updater app
@@ -31,8 +31,8 @@ Usage:
         --signing-key keys/private_key.pem \\
         --output ble_bl_update.sfw
 
-    # Step 2: Send via XMODEM to the running bootloader
-    python xmodem_send.py --port COM3 --file ble_bl_update.sfw --trigger -t ble-stm32
+    # Step 2: Send via NBU to the running bootloader
+    python nbu_send.py --port COM3 --file ble_bl_update.sfw --trigger -t ble-stm32
 
     # Step 3: The board reboots into the updater, updates bootloader, reboots again
 
@@ -621,7 +621,7 @@ def main():
         print(f"  2. make")
         print(f"  3. python ../sign_firmware.py -i build/updater.bin "
               f"-k ../../keys/private_key.pem -t {cfg['target']} -v {args.version}")
-        print(f"  4. python ../xmodem_send.py -p COM3 -f build/updater.sfw")
+        print(f"  4. python ../nbu_send.py -p COM3 -t {cfg['target']} -f build/updater.sfw")
 
 
 if __name__ == "__main__":

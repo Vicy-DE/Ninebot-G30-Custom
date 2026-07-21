@@ -23,23 +23,39 @@
 
 /* ── Flash layout (same for both 64KB STM32F103C8T6 boards) ───────────── */
 
-#define FLASH_BASE_ADDR        0x08000000U
+/**
+ * Bootloader link/run base. Defaults to 0x08000000 (the real, final location).
+ *
+ * For a **test-before-overwrite** build it can be overridden at compile time
+ * (`-DBL_BASE_ADDR=0x08004000`, via `make BL_BASE=0x08004000`) so the bootloader
+ * links and runs from the *application* slot at offset 16 KB. The already-installed
+ * bootloader then launches it there as if it were the app, exercising the new build
+ * **without erasing 0x08000000**. The app region, vector table (VTOR) and the flash
+ * erase/jump bounds below are all derived from this base, so the relocated build can
+ * never write below its own base — and in particular never touches 0x08000000.
+ */
+#ifndef BL_BASE_ADDR
+#define BL_BASE_ADDR           0x08000000U
+#endif
+
+#define FLASH_BASE_ADDR        0x08000000U    /**< Physical flash base (unchanged). */
 #define FLASH_SIZE             (64U * 1024U)
 #define FLASH_PAGE_SIZE        1024U          /**< 1 KB pages (medium density) */
 
-/** Bootloader occupies 16 KB (pages 0-15). */
-#define BOOTLOADER_START       FLASH_BASE_ADDR
+/** Bootloader occupies 16 KB starting at the link base. */
+#define BOOTLOADER_START       BL_BASE_ADDR
 #define BOOTLOADER_SIZE        (16U * 1024U)
 #define BOOTLOADER_PAGES       16U
 
-/** Application starts at 0x08004000. */
-#define APP_START_ADDR         (FLASH_BASE_ADDR + BOOTLOADER_SIZE)
-#define APP_MAX_SIZE           (46U * 1024U)
-#define APP_PAGES              46U
-
-/** Config/flags block: last 2 KB. */
+/** Config/flags block: last 2 KB of physical flash. */
 #define CONFIG_START_ADDR      0x0800F800U
 #define CONFIG_SIZE            (2U * 1024U)
+
+/** Application starts right after the bootloader and fills the gap to the config
+ *  page — so a relocated bootloader's app region never overlaps 0x08000000. */
+#define APP_START_ADDR         (BL_BASE_ADDR + BOOTLOADER_SIZE)
+#define APP_MAX_SIZE           (CONFIG_START_ADDR - APP_START_ADDR)
+#define APP_PAGES              (APP_MAX_SIZE / FLASH_PAGE_SIZE)
 
 /** Update request flag magic value (stored in config page). */
 #define UPDATE_FLAG_MAGIC      0xDEAD1234U
@@ -68,6 +84,9 @@
     /** SFW target ID for this board */
     #define MY_TARGET_ID           SFW_TARGET_BLE_STM32
 
+    /** Ninebot bus address for framed (NBU) firmware updates */
+    #define MY_BUS_ADDR            0x21
+
     /** Power button on PB12 (active-low) — used as update trigger */
     #define UPDATE_BUTTON_PORT     'B'
     #define UPDATE_BUTTON_PIN      12
@@ -87,6 +106,9 @@
     #define UPDATE_UART_REMAP      0             /**< No remap needed */
 
     #define MY_TARGET_ID           SFW_TARGET_BMS_STM32
+
+    /** Ninebot bus address for framed (NBU) firmware updates */
+    #define MY_BUS_ADDR            0x22
 
     /** No easily accessible button on BMS — use flag-only update trigger */
     #define UPDATE_BUTTON_PORT     0
@@ -108,7 +130,7 @@
 /** SysTick reload for 1 ms tick at 72 MHz. */
 #define SYSTICK_RELOAD         (SYSTEM_CLOCK / 1000U - 1U)
 
-/** Maximum time to wait for XMODEM transfer start (seconds). */
+/** Maximum time to wait for NBU transfer start (seconds). */
 #define UPDATE_TIMEOUT_SEC     60U
 
 /* ── ECDSA public key ──────────────────────────────────────────────────── */

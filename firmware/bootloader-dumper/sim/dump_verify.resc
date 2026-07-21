@@ -1,0 +1,20 @@
+:name: bootloader-dumper — Renode verification
+:description: Place a known 4 KB pattern at 0x08000000 (the bootloader region),
+:description: run the dumper, and capture its USART2 output. dump_bootloader.py
+:description: then checks the CRC32 and that the bytes equal the pattern.
+using sysbus
+$repo ?= @C:/Users/Layer/Documents/Ninebot-G30-Custom
+logLevel 3
+
+mach create "g30-dump"
+machine LoadPlatformDescription @platforms/cpus/stm32f103.repl
+machine LoadPlatformDescription $repo/firmware/dashboard/sim/renode/dash_overlay.repl
+
+# Stand-in "stock bootloader" at 0x08000000, then the dumper app at 0x08001000.
+sysbus LoadBinary $repo/firmware/bootloader-dumper/sim/pattern.bin 0x08000000
+sysbus LoadELF $repo/firmware/bootloader-dumper/build/bldump.elf
+
+sysbus.usart2 CreateFileBackend $repo/firmware/bootloader-dumper/sim/usart2_dump.log true
+
+emulation RunFor "00:00:04"
+quit

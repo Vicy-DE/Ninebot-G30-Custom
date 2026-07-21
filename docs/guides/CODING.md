@@ -129,7 +129,7 @@ Scripts are organized by purpose:
 
 | Directory | Purpose | Examples |
 |-----------|---------|----------|
-| `tools/flasher/` | Firmware flashing and UART communication | `ninebot_flasher.py`, `xmodem_send.py` |
+| `tools/flasher/` | Firmware flashing and UART communication | `ninebot_flasher.py`, `nbu_send.py` |
 | `tools/signing/` | Firmware signing and key management | `sign_firmware.py`, `generate_keys.py` |
 | `tools/analysis/` | Firmware analysis and reverse engineering | `disassemble_firmware.py`, `analyze_bootloader.py` |
 | `Target/` | Hardware test/debug scripts | `test_ble_boot.py`, `capture_protocol.py` |
@@ -169,7 +169,7 @@ $ProjectRoot = Split-Path (Split-Path $ScriptDir -Parent) -Parent
 
 ## RULE: Naming Convention
 
-- Use `snake_case` for Python scripts: `ninebot_flasher.py`, `xmodem_send.py`
+- Use `snake_case` for Python scripts: `ninebot_flasher.py`, `nbu_send.py`
 - Use `kebab-case` for shell scripts: `build-all.ps1`
 - Exception: legacy scripts may keep their established names
 
@@ -187,7 +187,7 @@ $ProjectRoot = Split-Path (Split-Path $ScriptDir -Parent) -Parent
 | Script | Directory | Language | Purpose |
 |--------|-----------|----------|---------|
 | `ninebot_flasher.py` | flasher | Python | Flash via Ninebot IAP protocol |
-| `xmodem_send.py` | flasher | Python | Flash via XMODEM-CRC |
+| `nbu_send.py` | flasher | Python | Flash via NBU (framed half-duplex) |
 | `initial_flash.py` | flasher | Python | First-time SWD flash helper |
 | `update_bootloader.py` | flasher | Python | Bootloader self-update |
 | `sign_firmware.py` | signing | Python | Sign firmware with ECDSA-P256 |

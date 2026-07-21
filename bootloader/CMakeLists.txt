@@ -48,10 +48,11 @@ set(COMMON_DIR ${CMAKE_CURRENT_SOURCE_DIR}/common)
 set(COMMON_SOURCES
     ${COMMON_DIR}/src/sha256.c
     ${COMMON_DIR}/src/ecdsa.c
-    ${COMMON_DIR}/src/xmodem.c
+    ${COMMON_DIR}/src/nbu.c
     ${COMMON_DIR}/src/crc32.c
     ${COMMON_DIR}/src/fw_header.c
     ${COMMON_DIR}/src/bootloader.c
+    ${COMMON_DIR}/src/libc_min.c
 )
 set(COMMON_INCLUDE ${COMMON_DIR}/include)
 

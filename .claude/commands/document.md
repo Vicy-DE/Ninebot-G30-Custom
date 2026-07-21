@@ -14,7 +14,7 @@ Document the verified change. Do BOTH:
 ### What it does / expected behaviour
 <observable effect>
 ### Verified
-- Build: OK/FAIL · Flash: OK/FAIL (IAP/XMODEM/SWD) · UART: OK/FAIL (<obs>) · Functional: OK/FAIL
+- Build: OK/FAIL · Flash: OK/FAIL (IAP/NBU/SWD) · UART: OK/FAIL (<obs>) · Functional: OK/FAIL
 ```
 Use past tense for "what was changed", present tense for "what it does". One line per modified file. Never skip, even for trivial changes.
 

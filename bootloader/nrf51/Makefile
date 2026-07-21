@@ -35,9 +35,10 @@ C_SOURCES = \
     $(SRC_DIR)/nrf51_uart.c \
     $(COMMON_DIR)/src/sha256.c \
     $(COMMON_DIR)/src/ecdsa.c \
-    $(COMMON_DIR)/src/xmodem.c \
+    $(COMMON_DIR)/src/nbu.c \
     $(COMMON_DIR)/src/crc32.c \
-    $(COMMON_DIR)/src/fw_header.c
+    $(COMMON_DIR)/src/fw_header.c \
+    $(COMMON_DIR)/src/libc_min.c
 
 ASM_SOURCES = \
     $(SRC_DIR)/startup.s
@@ -95,7 +96,7 @@ $(BUILD_DIR)/%.o: %.s
 	$(AS) $(ASFLAGS) -c $< -o $@
 
 $(TARGET).elf: $(OBJECTS)
-	$(LD) $(LDFLAGS) $(OBJECTS) -o $@
+	$(LD) $(LDFLAGS) $(OBJECTS) -lgcc -o $@   # -lgcc after objects: Cortex-M0 64-bit helpers (__aeabi_lmul/llsr)
 
 $(TARGET).hex: $(TARGET).elf
 	$(OBJCOPY) -O ihex $< $@

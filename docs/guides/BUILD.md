@@ -158,4 +158,4 @@ Board-specific code uses preprocessor guards:
 #endif
 ```
 
-Common code (protocol, XMODEM, crypto) is shared across all targets via `bootloader/common/` and `lib/ninebot-protocol/`.
+Common code (protocol, NBU, crypto) is shared across all targets via `bootloader/common/` and `lib/ninebot-protocol/`.

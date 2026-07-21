@@ -30,7 +30,7 @@ From `docs/BLE_PROTOCOL_VERIFIED.md` (firmware RE + APK disassembly):
 | **App NUS** | `6E400001-…CA9E` (RX `…0002`, TX `…0003`) | stock Ninebot framed protocol (+ MiIO/nbcrypto) | original phone app |
 | **VESC NUS** | second NUS instance (distinct 128-bit base) | raw VESC packets (TUNNEL) | VESC Tool mobile (Req 3) |
 | **(optional) Mi service** | `FE95` | MiIO advertising/bind if targeting legacy app | Mi Home |
-| **DFU** | Nordic Secure DFU / our XMODEM relay | firmware update (Req 6) | bootloader |
+| **DFU** | Nordic Secure DFU / our NBU relay (framed half-duplex) | firmware update (Req 6) | bootloader |
 
 The two NUS instances let the **stock app and VESC Tool coexist**. The improved **NB+** protocol
 (`PROTOCOL_V2.md`) rides the VESC/companion path as `TYPE=TUNNEL`; the **stock app path stays stock**.
@@ -104,10 +104,18 @@ Selectable at build time (`NB_AUTH=MIIO|NBCRYPTO|NONE`):
 - [ ] S130 GAP + dual NUS services; advertising name/format the app expects.
 - [ ] `nb_ble_bridge`: App NUS ⇄ UART using the verified Ninebot core.
 - [ ] `nb_auth`: NONE first (bring-up), then MIIO or NBCRYPTO backend for the target app.
-- [ ] `vesc_nus`: raw VESC tunnel (Req 3).
-- [ ] `haystack`: rolling-key non-connectable advertiser + persisted period counter (Req 15).
-- [ ] `mode_ctrl`: `0xAA`/`0xAB` UART handler (Req 15.3).
-- [ ] Host tests for framer/auth-NONE/haystack-payload; on-device app-compat + VESC-Tool + FindMy.
+- [x] `vesc_nus` **framing/CRC** — `vesc_tunnel.h` (host-tested); [ ] S130 2nd-NUS service glue (Req 3).
+- [x] `haystack` **adv payload + key schedule** — `haystack.h` (host-tested); [ ] non-connectable
+      advertiser + persisted period counter on S130 (Req 15).
+- [x] `mode_ctrl`: `0xAA`/`0xAB` UART handler — `mode_ctrl.h` (host-tested, Req 15.3).
+- [x] Host tests for framer/haystack-payload/mode — `tests/test_new_modules.cpp` (16 tests);
+      [ ] `nb_auth` backends; [ ] on-device app-compat + VESC-Tool + FindMy.
+
+> **Implementation status (2026-06-09):** framing/payload/mode cores are implemented header-only and
+> host-tested ([`nrf51822/include/vesc_tunnel.h`](../firmware/decompiled/nrf51822/include/vesc_tunnel.h),
+> [`haystack.h`](../firmware/decompiled/nrf51822/include/haystack.h),
+> [`mode_ctrl.h`](../firmware/decompiled/nrf51822/include/mode_ctrl.h)). SoftDevice/SDK glue and the
+> `nb_auth` MiIO/nbcrypto backends remain target-side work.
 
 See `firmware/decompiled/DECOMPILATION.md`, `docs/BLE_PROTOCOL_VERIFIED.md`, `docs/REGISTER_MAP.md`,
 `docs/PROTOCOL_V2.md`, and `docs/DASHBOARD_FIRMWARE.md` (the STM32 side this bridges to).

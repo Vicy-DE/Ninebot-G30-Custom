@@ -6,6 +6,13 @@
 > 3×), BMS (`BMS_1.7.4.5`, 1×) and nRF51 BLE (1×) firmware. The register-map tables below are
 > documented/community-sourced and only **partially** reconstructed from firmware. Evidence:
 > [`firmware/decompiled/RE_FINDINGS.md`](../firmware/decompiled/RE_FINDINGS.md).
+>
+> ✅ **Hardware-verified (2026-06-15).** The bus was captured on the **live G30 scooter** with a
+> NUCLEO-C542RC software-UART logic analyzer: 115200 8N1, the `5A A5` framing with **LEN = payload
+> byte count**, the `sum(LEN..payload) ^ 0xFFFF` checksum, and addresses `0x20`/`0x21` are all
+> confirmed on real silicon. A captured, checksum-valid frame and the live runtime `0x64`/`0x65`
+> dashboard↔ESC conversation are documented below. Source:
+> [`boards/ble-dashboard/C542_BUS_CAPTURE.md`](../boards/ble-dashboard/C542_BUS_CAPTURE.md).
 
 ## Overview
 
@@ -81,6 +88,25 @@ Reading ESC serial number (register 0x10) from app:
 
 > The LEN byte counts **only the payload** (here `0E 00` → `02`), not SRC/DST/CMD/ARG. This is the
 > firmware-verified convention (a previous revision of this doc incorrectly wrote `06`).
+>
+> ⚠️ Any doc that states `LEN = 4 + payload` or `LEN = SrcAddr..Payload` is **WRONG** — the live-bus
+> capture proves `LEN = payload byte count` (see the hardware-captured frame below).
+
+### Hardware-captured frame (live G30, checksum VALID, 2026-06-15)
+
+Reproduced across 3 captures on the actual scooter — the dashboard polling the ESC:
+
+```
+5A A5 05 21 20 65 00 04 28 22 02 00 04 FF
+└hdr┘ │  │  │  │  │  └──── payload[5] ────┘ └ CK ┘
+     LEN SRC DST CMD ARG
+      05  21  20  65  00
+```
+
+- **SRC `0x21`** (BLE/dashboard) → **DST `0x20`** (ESC), **CMD `0x65`**, **LEN = 5** (the five payload
+  bytes `04 28 22 02 00`), checksum `04 FF` valid.
+- This is the **dashboard acting as bus master** on this wire, polling the ESC every cycle. It confirms
+  the framing, the `LEN = payload count` convention, the checksum, and the addresses on real hardware.
 
 ## Device Addresses
 
@@ -101,6 +127,45 @@ Reading ESC serial number (register 0x10) from app:
 | **Write** | `0x02` | Write register(s) to target |
 | **Read Response** | `0x01` | Response to a read command (same cmd byte, payload contains data) |
 | **Write Response** | `0x02` | Acknowledgment of write command |
+
+### Stock app command dispatch (firmware-disassembled)
+
+> Disassembled from `DRV_1.2.6` / `BMS_1.7.4.5`: the application command handler
+> (`App_to_ESC_handler @0x08005624`) dispatches the `CMD` byte through a `tbb` jump table at
+> `0x08005650`. The register file is **16-bit words in SRAM @`0x200007D6`, indexed by the `ARG` byte**
+> (see [`REGISTER_MAP.md`](REGISTER_MAP.md)). The opcodes:
+
+| Cmd | Hex | Action |
+|---|---|---|
+| **READ** | `0x01` | Read `regfile[ARG..]` (response cmd `0x04`) |
+| **WRITE** | `0x02` | Write `regfile[ARG..]` + response |
+| **WRITE** | `0x03` | Write `regfile[ARG..]`, no response |
+| **Subscribe / stream** | `0x07`–`0x0A` | Subscribe / stream register updates |
+| **Calibration** | `0x18` | Calibration (needs sub-cmd `0x12` + `"N4G"` magic) — **NOT a reset** |
+| **Data-block write** | `0x50` | Firmware data-block write (IAP) |
+| **Enter firmware update** | `0x57` / `0x59` | Enter bootloader — **UID-password-gated** (see below) |
+| **Erase / begin-flash** | `0x58` | Erase application area / begin flashing |
+| **Param / seed write** | `0x5C` | Parameter / seed write |
+
+> ⚠️ Writing "reg `0x78`" does **NOT** trigger a reset — that convention is unverified. The real
+> enter-update path is **CMD `0x57`/`0x59`**, which is authenticated (next section).
+
+### Enter-bootloader is UID-authenticated (the real flashing wall)
+
+CMD **`0x57`** carries a password derived from the STM32 **96-bit chip UID @`0x1FFFF7E8`** (the
+firmware references that address at vma `0x08005478`):
+
+```
+CMD 0x57 payload = ~(UID0 + UID1 + UID2)  ‖  ~(UID0 · UID1 · UID2)
+                   └──── 32-bit LE ─────┘    └──── 32-bit LE ─────┘
+```
+
+i.e. the bitwise-NOT of the **sum** of the three 32-bit UID words, concatenated with the bitwise-NOT of
+their **product**, both little-endian. On a valid password the firmware sets a RAM flag; the main loop
+then writes a **`0x5A5A` "stay in IAP" magic** to a flash marker page (DRV `0x0801C000`, BMS
+`0x0800F000`) and issues `NVIC_SystemReset` (`AIRCR = 0x05FA0004`). The 4 KB stock bootloader checks
+that magic at boot and stays in IAP. Because the password is a per-board secret (the chip UID, not
+exposed on the bus), the dashboard cannot be put into update mode over the wired bus without it.
 
 ## ESC Register Map (DRV)
 
@@ -187,16 +252,49 @@ Reading ESC serial number (register 0x10) from app:
 | 9 | Motor temp high | Motor overtemperature |
 | 10 | Communication error | Lost link to BLE or BMS |
 
+## Runtime dashboard↔ESC frames (hardware-confirmed 2026-06-15)
+
+The live dashboard↔ESC conversation (reverse-engineered from `vesc-lisp/g30_dash.lisp`, then confirmed
+on the live scooter via the C542 rig) uses two periodic head-I/O frames:
+
+| Frame | Dir | Format |
+|-------|-----|--------|
+| **0x65** | dashboard → ESC | `5A A5 05 21 20 65 00 \| ... throttle brake ... \| CK` — **throttle = payload byte at frame offset 5, brake = byte 6** (hall levels) |
+| **0x64** | ESC → dashboard | `5A A5 06 20 21 64 00 \| mode batt light beep speed error \| CK` — telemetry |
+
+**0x64 telemetry payload (6 bytes):**
+
+| Offset | Field | Meaning |
+|--------|-------|---------|
+| 0 | `mode` | riding mode (eco/drive/sport) |
+| 1 | `batt` | battery % |
+| 2 | `light` | headlight state |
+| 3 | `beep` | beeper request |
+| 4 | `speed` | km/h while riding (battery % when idle) |
+| 5 | `error` | fault code — **`0` = no fault** |
+
+**Comm-fault clear (verified on hardware):** the dashboard faults with an "ESC missing" comm error when
+the ESC never answers its `0x65` polls. Emulating the ESC and replying with a valid **`0x64` (error =
+0)** to each poll cleared the fault on the live scooter — the dashboard then started emitting its own
+`0x64` frames (`5A A5 07 21 20 64 00 …`), the richer conversation it only has with a healthy ESC.
+
 ## Firmware Update Protocol
 
 Firmware updates over-the-air follow a specific multi-step process:
 
-1. **Initiate update**: Send command to enter IAP (In-Application Programming) mode
-2. **Enter bootloader**: Target board resets into bootloader
-3. **Erase flash**: Erase application area
-4. **Send firmware blocks**: Transfer firmware in chunks (typically 64-128 bytes)
+1. **Initiate update**: enter IAP via **CMD `0x57`/`0x59`** — *UID-password-gated* (see
+   [Enter-bootloader is UID-authenticated](#enter-bootloader-is-uid-authenticated-the-real-flashing-wall))
+2. **Enter bootloader**: firmware writes the `0x5A5A` marker + `NVIC_SystemReset`; bootloader stays in IAP
+3. **Erase flash**: CMD `0x58` erases the application area
+4. **Send firmware blocks**: CMD `0x50` writes firmware in chunks (typically 64-128 bytes)
 5. **Verify**: Checksum verification of written data
 6. **Reset**: Restart into new firmware
+
+> The bootloader cannot be entered over the wired bus without the chip-UID password (CMD `0x57`). For
+> the dashboard, flashing is gated **two ways by design**: the wired ESC bus needs the chip-UID
+> password, and the BLE channel needs the Xiaomi MiIO registration token — both are per-device secrets
+> (see [`BLE_PROTOCOL_VERIFIED.md`](BLE_PROTOCOL_VERIFIED.md) and
+> [`../Documentation/VERIFICATION_REPORT.md`](../Documentation/VERIFICATION_REPORT.md)).
 
 ## Tools for Protocol Analysis
 

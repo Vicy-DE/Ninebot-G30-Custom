@@ -80,7 +80,7 @@ BLE Dashboard internal:
 ```
 
 **Protocol:** Ninebot protocol (5A A5 header) for runtime communication.
-**Update:** XMODEM-CRC for firmware updates (via VESC passthrough).
+**Update:** NBU (framed half-duplex) for firmware updates (via VESC passthrough).
 
 ---
 

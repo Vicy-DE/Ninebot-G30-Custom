@@ -67,6 +67,13 @@ If the bootloader is corrupted or the chip's read protection is set, the **only*
 
 ### Update Flag Mechanism
 
+> **🔬 Corrected (2026-06-15) — disassembly of `DRV_1.2.6` / `BMS_1.7.4.5`.** The app does **not** enter
+> the bootloader via a register write. It sets a RAM flag (`[0x200007B8+0x0D]`/`+0x13`), and the main loop
+> (`@0x08008140`) then writes a **`0x5A5A` "stay in IAP" magic to a flash marker page** (ESC `0x0801C000`,
+> BMS `0x0800F000`) and calls **`NVIC_SystemReset`** (`AIRCR=0x05FA0004` @ `0x080051D8`/`0x080031C8`). The
+> 4 KB stock bootloader checks that `0x5A5A` magic at boot to stay in IAP. The flag is set **only** by the
+> firmware's own watchdog/fault/timeout paths and by the **authenticated** update command (CMD 0x57, below).
+
 The application firmware sets an **update control block** before resetting to enter the bootloader. This is stored in one of:
 - The last flash page (persistent across resets)
 - A specific SRAM address (lost if power cycled before bootloader runs)
@@ -100,12 +107,22 @@ Evidence from firmware analysis:
 [0x5A] [0xA5] [LEN] [SRC] [DST] [CMD] [ARG] [PAYLOAD...] [CHK_LO] [CHK_HI]
 ```
 
-- **LEN** = number of bytes from SRC through end of PAYLOAD = 4 + payload_length
-- **Checksum** = `~(sum of bytes from LEN through end of PAYLOAD) & 0xFFFF`
+- **LEN** = **payload byte count** *(corrected 2026-06-15 — confirmed on the live bus; any "4 + payload_length" / "SRC..PAYLOAD" statement is WRONG. The captured frame `5A A5 05 21 20 65 00 04 28 22 02 00 04 FF` has LEN=05 for a 5-byte payload `04 28 22 02 00`.)*
+- **Checksum** = `~(sum of bytes from LEN through end of PAYLOAD) & 0xFFFF`, little-endian
 
 ### Step-by-Step Update Sequence
 
 #### Phase 1: Initiation
+
+> **🔬 Corrected (2026-06-15) — disassembly + live hardware.** On the stock G30 the enter-update command
+> is **`CMD = 0x57`** (alias `0x59`), **not** a write to "register 0x07" (CMD 0x07/0x0A in this firmware
+> are subscribe/stream; CMD 0x18 is calibration). It is **password-gated**: the payload is two 32-bit
+> little-endian words `~(UID0+UID1+UID2) ‖ ~(UID0·UID1·UID2)` derived from the STM32 **96-bit chip UID @
+> `0x1FFFF7E8`** (firmware reads it at vma `0x08005478`). A correct password sets the update flag → writes
+> the `0x5A5A` flash marker → `NVIC_SystemReset` into the bootloader. Verified on the live scooter: `0x57`
+> with a zero/wrong password is ignored (dashboard keeps running). So a real update needs the device's chip
+> UID (read over BLE by the official app, or captured from a genuine update). The block below is the
+> *older, generic* ninebot-docs sequence and is **not** what the stock G30 app uses — kept for reference.
 
 The host (phone app or PC tool) initiates the update by writing to the target board:
 

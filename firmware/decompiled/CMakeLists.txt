@@ -88,6 +88,7 @@ add_executable(firmware_tests
     tests/test_bus_integration.cpp
     tests/test_binary_equivalence.cpp
     tests/test_nrf51822.cpp
+    tests/test_new_modules.cpp
 )
 target_include_directories(firmware_tests PRIVATE
     tests
@@ -99,6 +100,40 @@ target_compile_options(firmware_tests PRIVATE
     $<$<CXX_COMPILER_ID:MSVC>:/W4 /O2>
 )
 
+# ─── Dashboard chip simulator (no-brick verification) ────────────────
+# Runs the real DashApp logic (firmware/dashboard) against a SimChip model.
+add_executable(dashboard_sim
+    ${CMAKE_CURRENT_SOURCE_DIR}/../dashboard/sim/sim_main.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../dashboard/sim/sim_dash_hal.cpp
+)
+target_include_directories(dashboard_sim PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../dashboard/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../dashboard/sim
+    ${CMAKE_CURRENT_SOURCE_DIR}/common/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/ble/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/nrf51822/include
+)
+target_compile_options(dashboard_sim PRIVATE
+    $<$<CXX_COMPILER_ID:GNU>:-Wall -Wextra -O2>
+    $<$<CXX_COMPILER_ID:Clang>:-Wall -Wextra -O2>
+    $<$<CXX_COMPILER_ID:MSVC>:/W4 /O2>
+)
+
+# ─── nRF51 Bluetooth firmware — BLE session simulator ───────────────
+add_executable(ble_sim
+    ${CMAKE_CURRENT_SOURCE_DIR}/nrf51822/sim/ble_sim.cpp
+)
+target_link_libraries(ble_sim PRIVATE nrf51_firmware)
+target_compile_options(ble_sim PRIVATE
+    $<$<CXX_COMPILER_ID:GNU>:-Wall -Wextra -O2>
+    $<$<CXX_COMPILER_ID:Clang>:-Wall -Wextra -O2>
+    $<$<CXX_COMPILER_ID:MSVC>:/W4 /O2>
+)
+
 # ─── CTest integration ───────────────────────────────────────────────
 enable_testing()
 add_test(NAME all_firmware_tests COMMAND firmware_tests)
+add_test(NAME dashboard_sim
+         COMMAND dashboard_sim
+                 ${CMAKE_CURRENT_SOURCE_DIR}/../dashboard/build/dashboard_app.bin)
+add_test(NAME ble_sim COMMAND ble_sim)

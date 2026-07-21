@@ -9,7 +9,7 @@
  *      a. GPREGRET == BOOT_ENTER_MAGIC (set by application before reset)
  *      b. Update flag in bootloader settings page
  *      c. No valid application at APP_START_ADDR
- *   4. If update → receive .sfw via XMODEM-CRC on UART0
+ *   4. If update → receive .sfw via the NBU framed half-duplex protocol on UART0
  *   5. If no update → jump to application
  *
  * The nRF51822 bootloader sits at 0x0003C000 (top of flash).
@@ -23,7 +23,7 @@
 #include "nrf51_flash.h"
 #include "nrf51_uart.h"
 #include "fw_header.h"
-#include "xmodem.h"
+#include "nbu.h"
 #include "sha256.h"
 #include "ecdsa.h"
 #include "crc32.h"
@@ -37,7 +37,7 @@ volatile uint32_t g_tick_ms = 0;
 
 static const uint8_t ecdsa_pubkey[ECDSA_P256_PUBKEY_SIZE] = ECDSA_PUBLIC_KEY;
 
-/* ── Receive state for XMODEM ──────────────────────────────────────────── */
+/* ── Receive state for NBU ─────────────────────────────────────────────── */
 
 static sfw_header_t g_sfw_header;
 static uint32_t g_flash_write_addr;
@@ -104,10 +104,10 @@ static int is_app_valid(void)
     return 1;
 }
 
-/* ── XMODEM write callback ─────────────────────────────────────────────── */
+/* ── NBU write callback ────────────────────────────────────────────────── */
 
-static int xmodem_block_handler(const uint8_t *data, uint32_t offset,
-                                 uint32_t length, void *user_ctx)
+static int nbu_block_handler(const uint8_t *data, uint32_t offset,
+                             uint32_t length, void *user_ctx)
 {
     (void)user_ctx;
     uint32_t i;
@@ -151,27 +151,27 @@ static int xmodem_block_handler(const uint8_t *data, uint32_t offset,
     return 0;
 }
 
-/* ── XMODEM I/O callbacks ──────────────────────────────────────────────── */
+/* ── NBU I/O callbacks ─────────────────────────────────────────────────── */
 
-static void xmodem_uart_send(uint8_t byte)
+static void nbu_uart_send(uint8_t byte)
 {
     nrf_uart_send_byte(byte);
 }
 
-static int xmodem_uart_recv(uint8_t *byte, uint32_t timeout)
+static int nbu_uart_recv(uint8_t *byte, uint32_t timeout)
 {
     return nrf_uart_recv_byte(byte, timeout);
 }
 
-static uint32_t xmodem_get_tick(void)
+static uint32_t nbu_get_tick(void)
 {
     return get_tick();
 }
 
-static const xmodem_io_t xmodem_io = {
-    .uart_send_byte = xmodem_uart_send,
-    .uart_recv_byte = xmodem_uart_recv,
-    .get_tick_ms    = xmodem_get_tick,
+static const nbu_io_t nbu_io = {
+    .uart_send_byte = nbu_uart_send,
+    .uart_recv_byte = nbu_uart_recv,
+    .get_tick_ms    = nbu_get_tick,
 };
 
 /* ── Update mode ───────────────────────────────────────────────────────── */
@@ -180,11 +180,11 @@ static void enter_update_mode(void)
 {
     uint32_t total_received = 0;
     sfw_result_t result;
-    xmodem_result_t xresult;
+    nbu_result_t xresult;
 
     nrf_uart_puts("\r\n[BOOT-NRF] Secure Bootloader v1.0\r\n");
     nrf_uart_puts("[BOOT-NRF] Target: nRF51822\r\n");
-    nrf_uart_puts("[BOOT-NRF] Waiting for .sfw via XMODEM-CRC...\r\n");
+    nrf_uart_puts("[BOOT-NRF] Waiting for .sfw via NBU (framed half-duplex)...\r\n");
 
     /* Initialize receive state */
     memset(&g_sfw_header, 0, sizeof(g_sfw_header));
@@ -200,12 +200,12 @@ static void enter_update_mode(void)
     }
     nrf_uart_puts("[BOOT-NRF] Erase complete.\r\n");
 
-    /* Receive via XMODEM */
-    xresult = xmodem_receive(&xmodem_io, xmodem_block_handler,
-                              NULL, &total_received);
+    /* Receive via the NBU framed half-duplex protocol */
+    xresult = nbu_receive(&nbu_io, MY_BUS_ADDR, nbu_block_handler,
+                          NULL, &total_received);
 
-    if (xresult != XMODEM_OK) {
-        nrf_uart_puts("[BOOT-NRF] ERROR: XMODEM transfer failed\r\n");
+    if (xresult != NBU_OK) {
+        nrf_uart_puts("[BOOT-NRF] ERROR: NBU transfer failed\r\n");
         nrf_flash_erase_app_region();
         return;
     }

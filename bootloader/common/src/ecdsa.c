@@ -170,40 +170,29 @@ static void bn_mod_mul(bn256_t *r, const bn256_t *a, const bn256_t *b,
         prod[i + 8] = (uint32_t)carry;
     }
 
-    /* Reduction: repeated subtraction of mod shifted left.
-     * This is simple but works for our use case. */
-    /* For a proper implementation, use Barrett or Montgomery reduction.
-     * Here we do trial subtraction from the top. */
-    bn256_t tmp;
-    /* Start with the full 512-bit result and reduce */
-    /* Simple approach: take the result mod by repeated subtraction */
-    /* For production, replace with fast P-256 reduction using the
-     * special structure of the NIST prime. */
-
-    /* Copy low 256 bits as initial result */
-    for (i = 0; i < 8; i++) {
-        r->w[i] = prod[i];
-    }
-
-    /* Process high words: for each high word, we need to reduce */
-    /* Using the NIST P-256 fast reduction identity:
-     * p = 2^256 - 2^224 + 2^192 + 2^96 - 1
-     * So 2^256 ≡ 2^224 - 2^192 - 2^96 + 1 (mod p) */
-    /* However, for simplicity and correctness, we use repeated
-     * conditional subtraction. This is slower but guaranteed correct. */
-    for (i = 0; i < 16; i++) {
-        while (bn_cmp(r, mod) >= 0) {
+    /* Reduce the full 512-bit product modulo `mod`, MSB-first bit-serial long
+     * division (textbook; correct for any modulus). The earlier version kept
+     * only the low 256 bits of the product (`r->w[i] = prod[i]`) and dropped
+     * the high half, computing (a*b mod 2^256) mod m — wrong whenever a*b
+     * exceeds 2^256, which made EVERY ECDSA verification fail. Regression test:
+     * bootloader/tests/test_secureboot.cpp. */
+    int k;
+    bn_set_zero(r);
+    for (i = 511; i >= 0; i--) {
+        /* r <<= 1, capturing the carry out of bit 255 */
+        uint32_t carry = 0;
+        for (k = 0; k < 8; k++) {
+            uint32_t next = r->w[k] >> 31;
+            r->w[k] = (r->w[k] << 1) | carry;
+            carry = next;
+        }
+        uint32_t carry_out = carry;
+        /* bring in bit i of the 512-bit product */
+        r->w[0] |= (prod[i >> 5] >> (i & 31)) & 1u;
+        /* the running value stays < 2*mod, so one conditional subtract suffices */
+        if (carry_out || bn_cmp(r, mod) >= 0) {
             bn_sub(r, r, mod);
         }
-        if (i < 15) {
-            /* Shift product right by one word and add contribution */
-            /* Actually, let's just check if high part is non-zero and subtract */
-        }
-    }
-
-    /* Final reduction */
-    while (bn_cmp(r, mod) >= 0) {
-        bn_sub(r, r, mod);
     }
 }
 
@@ -508,7 +497,7 @@ int ecdsa_p256_valid_pubkey(const uint8_t pubkey[ECDSA_P256_PUBKEY_SIZE])
     if (bn_cmp(&y, &P256_P) >= 0) return 0;
 
     /* Check y^2 = x^3 - 3x + b (mod p) */
-    bn256_t y2, x2, x3, lhs, rhs;
+    bn256_t y2, x2, x3, rhs;
 
     bn_mod_mul(&y2, &y, &y, &P256_P);        /* y^2 */
     bn_mod_mul(&x2, &x, &x, &P256_P);        /* x^2 */

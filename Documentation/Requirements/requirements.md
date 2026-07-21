@@ -41,18 +41,18 @@
 | Item | Detail |
 |---|---|
 | **Module / Component** | `bootloader/stm32/` |
-| **Interface** | UART (XMODEM-CRC), Flash |
+| **Interface** | UART (NBU framed half-duplex), Flash |
 | **Board** | BLE STM32 |
-| **Requirements** | 16 KB bootloader at 0x08000000. ECDSA-P256-SHA256 firmware signature verification. XMODEM-CRC receiver for firmware updates. Update triggers: software flag, hardware button, missing/invalid app. Must fit in 16 KB with ECDSA + SHA-256 + XMODEM + flash driver. Public key embedded in read-only bootloader flash. |
+| **Requirements** | 16 KB bootloader at 0x08000000. ECDSA-P256-SHA256 firmware signature verification. NBU receiver for firmware updates (framed half-duplex over the one-wire Ninebot bus; replaces the former XMODEM path). Update triggers: software flag, hardware button, missing/invalid app. Must fit in 16 KB with ECDSA + SHA-256 + NBU + flash driver. Public key embedded in read-only bootloader flash. |
 
 ## 6. Secure Bootloader — nRF51822
 
 | Item | Detail |
 |---|---|
 | **Module / Component** | `bootloader/nrf51/` |
-| **Interface** | UART (XMODEM-CRC), Flash |
+| **Interface** | UART (NBU framed half-duplex), Flash |
 | **Board** | nRF51822 |
-| **Requirements** | 16 KB bootloader at 0x0003C000 (end of flash). Same ECDSA signature verification as STM32. XMODEM receive via UART0 (relayed from STM32). Must coexist with Nordic MBR and SoftDevice. Flash programming via MBR API calls. UICR BOOTLOADERADDR set to 0x0003C000. |
+| **Requirements** | 16 KB bootloader at 0x0003C000 (end of flash). Same ECDSA signature verification as STM32. NBU receive via UART0 (relayed from STM32). Must coexist with Nordic MBR and SoftDevice. Flash programming via MBR API calls. UICR BOOTLOADERADDR set to 0x0003C000. |
 
 ## 7. Signed Firmware Image Format (.sfw)
 
@@ -197,6 +197,18 @@ Three options were evaluated for how the nRF51 remains active during sleep:
 
 Option A is selected: explicit software commands are more deterministic than inactivity timeouts and require no extra hardware.
 
+## 16. Dashboard Watchdog — IWDG 5000 ms (hard requirement)
+
+| Item | Detail |
+|---|---|
+| **Module / Component** | `firmware/dashboard/`, `firmware/decompiled/common/include/watchdog_supervisor.h` |
+| **Interface** | STM32F103 IWDG (independent watchdog, LSI-clocked); subsystem health |
+| **Board** | BLE STM32 (dashboard) |
+| **Requirements** | The dashboard firmware **must** run the STM32F103 IWDG with a **5000 ms timeout**. The IWDG resets the MCU if it is not reloaded in time, recovering from a hung firmware. The firmware reloads the IWDG **only while every *required* subsystem is fresh** — loop alive, clock up, ADC converting, and (while in RUN) the VESC link. If a required subsystem is **missing or stalls** beyond the staleness window (must be **< 5000 ms**, default 2000 ms), the firmware **withholds the reload** so the IWDG fires and the MCU resets+re-inits — i.e. "reset if something is missing." IWDG register values (PR=4, RLR=3124 at LSI 40 kHz → 5000 ms) are produced by `tools/analysis/iwdg_config.py` and `ninebot::iwdg_params()` (single source of truth). The IWDG is started **last** during init so a failed earlier init cannot be cut short mid-sequence. |
+| **Verification** | Host tests `test_new_modules.cpp` (`Watchdog.IwdgParamsFor5000ms`, `Watchdog.FeedsOnlyWhenRequiredSubsystemsFresh`, `Watchdog.NonRequiredSubsystemDoesNotBlockFeed`); HW test `Target/dashboard_watchdog_test.py` (reset cadence ≈ 5 s when a dependency is missing). |
+
+> LSI is ~40 kHz but spec'd 30–60 kHz, so the realised timeout spans ~3.3–6.7 s around the 5 s nominal — acceptable for a recovery watchdog.
+
 ---
 
 ## Traceability Matrix
@@ -218,3 +230,4 @@ Option A is selected: explicit software commands are more deterministic than ina
 | 13 | Daly BMS Compatibility | 2 |
 | 14 | VESC Lisp Motor Control | 1 |
 | 15 | OpenHaystack AirTag Emulation | 3, 6 |
+| 16 | Dashboard Watchdog (IWDG 5000 ms) | 2 |

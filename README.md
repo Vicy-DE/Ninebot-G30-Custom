@@ -8,7 +8,7 @@ This repository contains hardware documentation, datasheets, firmware dumps, and
 |---|---|
 | **Model** | Ninebot Max G30 / G30P / G30D / G30LP |
 | **Motor** | 350W nominal / 700W peak, rear hub BLDC |
-| **Battery** | 36V 15.3Ah (551Wh), 10S3P Li-ion |
+| **Battery** | 36V 15.3Ah (551Wh), 10S6P Li-ion (60× 18650) |
 | **Max Speed** | 25-30 km/h (region dependent) |
 | **Range** | ~65 km |
 | **Tires** | 10" pneumatic (front and rear) |

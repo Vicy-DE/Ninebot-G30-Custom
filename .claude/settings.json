@@ -21,7 +21,7 @@
     ],
     "ask": [
       "Bash(python tools/flasher/ninebot_flasher.py:*)",
-      "Bash(python tools/flasher/xmodem_send.py:*)",
+      "Bash(python tools/flasher/nbu_send.py:*)",
       "Bash(python tools/flasher/update_bootloader.py:*)",
       "Bash(openocd:*)"
     ]

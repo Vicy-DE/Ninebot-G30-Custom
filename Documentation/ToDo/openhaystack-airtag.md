@@ -62,7 +62,7 @@
 ### Standard Tasks
 
 - [ ] Build `firmware/decompiled/nrf51822/` target — fix all errors
-- [ ] Flash to nRF51822 via STM32 relay (XMODEM) — Phase 4 method
+- [ ] Flash to nRF51822 via STM32 relay (NBU) — Phase 4 method
 - [ ] Verify via UART monitor:
   - [ ] FindMy advertisements visible in BLE scanner (e.g., nRF Connect) while in HAYSTACK mode
   - [ ] Mode switch `0xAA` / `0xAB` commands work correctly
@@ -95,7 +95,7 @@ At 5,000 ms advertising interval with Nordic SoftDevice DCDC converter active:
 0x00018000  SoftDevice boundary
 ...
 0x0002FC00  haystack_keys[96][28]  = 2,688 bytes (one page = 1,024 bytes, 3 pages)
-0x00030000  Staging buffer (XMODEM update, 48 KB)
+0x00030000  Staging buffer (NBU update, 48 KB)
 0x0003C000  Bootloader (16 KB)
 0x0003FC00  Bootloader settings
 ```

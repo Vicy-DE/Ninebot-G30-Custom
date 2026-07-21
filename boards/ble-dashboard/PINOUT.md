@@ -8,6 +8,14 @@
 > firmware analysis" as previously stated. The nRF51822 section (MCU 2) *is* firmware-backed.
 > See [`firmware/decompiled/RE_FINDINGS.md`](../../firmware/decompiled/RE_FINDINGS.md) and
 > [`Documentation/VERIFICATION_REPORT.md`](../../Documentation/VERIFICATION_REPORT.md).
+>
+> ✅ **Bus confirmed on the live scooter (2026-06-15).** Tapping the dashboard plug with a NUCLEO-C542RC
+> (software-UART logic analyzer) confirmed the STM32's outward **Ninebot bus**: 115200 8N1, `5A A5` framing
+> (LEN=payload), the dashboard transmitting as **SRC 0x21 → DST 0x20 (ESC)** — captured frame
+> `5A A5 05 21 20 65 00 04 28 22 02 00 04 FF` (CK ok). The STM32↔ESC link is the dashboard's **USART2**
+> (the *exact* package pin remains reference-derived without a dump, but the bus, baud, framing and role
+> are now hardware-fact). Tap wiring + signal flow: [`docs/C542_PROGRAMMER_SCHEMATIC.md`](../../docs/C542_PROGRAMMER_SCHEMATIC.md);
+> findings: [`C542_BUS_CAPTURE.md`](C542_BUS_CAPTURE.md).
 
 ## MCU 1: STM32F103C8T6 (LQFP-48) — Main Dashboard Controller
 
@@ -179,3 +187,20 @@ From BLE_1.1.0 analysis:
 
 > These strings reveal the BLE firmware implements the **Xiaomi MiIO BLE protocol** for device
 > authentication and cloud binding, in addition to the Ninebot serial protocol.
+
+## Bench tooling — NUCLEO-C542RC plug tap
+
+For dumping/RE on the bench, a **NUCLEO-C542RC** (STM32C542RCT6, Cortex-M33; on-board ST-LINK
++ Arduino Uno V3 headers) can tap the two signal wires of the dashboard's internal plug — one to
+the **BT** chip (nRF51822), one to the **dashboard** STM32 — and bridge them to USB:
+
+| Nucleo Arduino pin | STM32C542 pin | Tap | Source |
+|--------------------|---------------|-----|--------|
+| **A0** | **PA0** | plug wire #1 (115200 8N1) | board devicetree ([Zephyr](https://docs.zephyrproject.org/latest/boards/st/nucleo_c542rc/doc/index.html)) |
+| **A2** | **PA4** | plug wire #2 (115200 8N1) | board devicetree |
+| GND | GND | common ground (required) | — |
+
+The tap firmware *finds out* which wire is which (the dashboard's internal STM32↔nRF link is a
+2-wire UART: STM32 **USART1** PA9/PA10 ↔ nRF **UART0**). Procedure +
+verification: [`docs/DASHBOARD_DUMP_C542.md`](../../docs/DASHBOARD_DUMP_C542.md); firmware:
+[`firmware/dash-tap-c542/`](../../firmware/dash-tap-c542/).

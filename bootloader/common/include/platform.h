@@ -10,7 +10,7 @@
  *
  * Each platform provides:
  *   - Clock and peripheral initialization
- *   - UART send/receive (for XMODEM and status messages)
+ *   - UART send/receive (for NBU updates and status messages)
  *   - Flash erase/write (for firmware storage)
  *   - Application jump (set VTOR, MSP, branch)
  *   - Update trigger detection (button, flag, invalid app)

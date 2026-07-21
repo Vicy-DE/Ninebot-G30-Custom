@@ -11,7 +11,7 @@ Before writing any code for `$ARGUMENTS`, set up tracking:
 | Item | Detail |
 |---|---|
 | Module / Component | <bootloader/ble/bms/nrf51/protocol/tools> |
-| Interface | <UART/GPIO/SPI/I2C/BLE/XMODEM/ECDSA/N/A> |
+| Interface | <UART/GPIO/SPI/I2C/BLE/NBU/ECDSA/N/A> |
 | Board | <BLE STM32 / BMS STM32 / nRF51822 / VESC / All> |
 | Requirements | <what must be implemented, constraints> |
 ```

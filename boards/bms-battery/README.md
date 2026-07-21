@@ -10,7 +10,7 @@ The firmware for this board is designated as **BMS**.
 
 | Property | Value |
 |---|---|
-| **Configuration** | 10S3P (10 series, 3 parallel) |
+| **Configuration** | 10S6P (10 series, 6 parallel) — genuine cell `10INR19/66-6`; see [DALY_BMS_SELECTION.md](DALY_BMS_SELECTION.md) |
 | **Cell Type** | 18650 Lithium-ion |
 | **Nominal Voltage** | 36V (3.6V × 10) |
 | **Max Voltage** | 42V (4.2V × 10) |

@@ -1,0 +1,29 @@
+:name: G30 dashboard — IWDG watchdog reset on the REAL firmware (Renode)
+:description: ADC1_SR is left 0 so adc_read() never sees end-of-conversion ->
+:description: the ADC subsystem is "missing" -> the watchdog supervisor stops
+:description: feeding the IWDG -> the 5000 ms IWDG resets the Cortex-M3, which
+:description: reboots and re-prints [BOOT] on USART2. Multiple [BOOT]s = resets.
+using sysbus
+$repo ?= @C:/Users/Layer/Documents/Ninebot-G30-Custom
+logLevel 3
+
+mach create "g30-dash"
+machine LoadPlatformDescription @platforms/cpus/stm32f103.repl
+machine LoadPlatformDescription $repo/firmware/dashboard/sim/renode/dash_overlay.repl
+machine LoadPlatformDescription $repo/firmware/dashboard/sim/renode/dash_adc.repl
+sysbus LoadELF $repo/firmware/dashboard/build/dashboard_app.elf
+
+# Emulate the stock 4 KB bootloader: after a watchdog reset the Cortex-M3
+# re-fetches SP/PC from 0x00000000. The app is at 0x08001000, so mirror its
+# reset vector to 0x0 (the app sets VTOR=0x08001000 itself in Reset_Handler).
+# $sp/$resetpc default to this build; tools/renode_dashboard.py overrides them
+# with the actual values read from the .bin (build-robust).
+$sp ?= 0x20005000
+$resetpc ?= 0x080010ED
+sysbus WriteDoubleWord 0x00000000 $sp
+sysbus WriteDoubleWord 0x00000004 $resetpc
+
+sysbus.usart2 CreateFileBackend $repo/firmware/dashboard/sim/renode/usart2_watchdog.log true
+
+emulation RunFor "00:00:13"
+quit

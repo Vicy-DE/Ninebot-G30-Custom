@@ -1,5 +1,607 @@
 # Change Log — Ninebot G30 Max Custom Firmware
 
+## [2026-06-15] BLE path tried (PC Bluetooth) — dashboard found, blocked by MiIO auth
+
+### What was done
+- Added `tools/ble_ninebot.py` (bleak). The PC's Bluetooth found the dashboard **`G30LD`
+  (D8:68:BA:16:A0:33)** advertising the **Nordic UART Service** + **Xiaomi MiIO `0xfe95`**. Connected,
+  enumerated GATT, read MiIO info chars (product 0x035C, beaconkey, device-id).
+- The nRF51 bridges NUS↔STM32 (same protocol handler as the wired bus) but **only after MiIO auth**.
+  Verified: raw `5A A5` over NUS, over the MiIO control point 0x0001, and dummy auth writes to 0x0010 all
+  got **zero replies** — the relay stays closed until the MiIO handshake (auth → token login-confirm →
+  cloud bind → register, per the nRF51 RE) completes, keyed by the device's **registration token**.
+
+### Net (both channels exhausted, by design)
+The dump needs to flash the dashboard, and both ways in are cryptographically locked: **wired ESC bus** =
+CMD 0x57 gated by the STM32 **chip UID** (needs SWD to potted pads); **BLE** = NUS relay gated by the
+**MiIO registration token** (Xiaomi cloud / Mi Home). Neither secret is derivable from the bus or an
+unauthenticated BLE read. To finish, supply one: the **MiIO token** (Mi Home / `python-miio` cloud with
+the Xiaomi login) → implement MiIO auth + read UID / drive update; a **captured real app-update** (the
+C542 rig records the real CMD 0x57 password); or the **chip UID**. Everything else is built + proven on
+hardware. Evidence: `boards/ble-dashboard/C542_BUS_CAPTURE.md`.
+
+## [2026-06-15] RE: enter-bootloader is UID-authenticated (CMD 0x57) — the dump's real wall
+
+### What was reverse-engineered (firmware disassembly + live hardware)
+- Disassembled `DRV_1.2.6.bin` + `BMS_1.7.4.5.bin` (same protocol handler as the dashboard): the
+  reset-into-bootloader path sets a RAM flag → writes a **`0x5A5A` magic to a flash marker page** →
+  `NVIC_SystemReset`; the 4 KB stock bootloader checks that magic.
+- **CMD 0x18 = calibration (not reset)**; the real **enter-update is CMD 0x57/0x59**, and it is
+  **password-gated**: `payload = ~(UID0+UID1+UID2) ‖ ~(UID0·UID1·UID2)` from the STM32 **chip UID @
+  0x1FFFF7E8** (firmware references that address at vma 0x08005478). So `CMD 0x07`/`0x18`/`reg 0x78` were
+  all wrong; the gate needs the device's hardware UID.
+- Built an **SWD-mailbox inject/read RE rig** (`esc_inject.py` + the `esc_faker` mailbox): inject any frame
+  on the live bus while the ESC stays emulated, capture the reply. Used it to prove the wall.
+
+### Verified — on the real scooter
+- Dashboard answers **no reads** on the ESC bus (bus-master; UID/serial are read over BLE), and
+  **CMD 0x57/0x59/0x58/0x5C with a zero password are ignored** (keeps polling). The gate is real; the
+  secret (chip UID) isn't on this wire.
+- **The dump is gated on exactly one secret: the dashboard's 96-bit chip UID.** Two supported ways to get
+  it: (1) capture a **real Ninebot-app update** of the dashboard with this rig — the app sends the correct
+  CMD 0x57 password over the ESC bus; replay it (UID is fixed per board); or (2) obtain the chip UID
+  (e.g. BLE engineering read) and compute the password. Everything else — TX, oversampled RX, ESC emulator
+  (clears the fault), update-protocol map, dumper app, IAP/ECDSA flow — is built + proven on hardware.
+  Evidence: `boards/ble-dashboard/C542_BUS_CAPTURE.md`.
+
+## [2026-06-15] RE: dashboard↔ESC protocol decoded; ESC emulator CLEARS the comm-fault on hardware
+
+### What was reverse-engineered
+- From `vesc-lisp/g30_dash.lisp` (in-repo) + [etransport/ninebot-docs](https://github.com/etransport/ninebot-docs/wiki/protocol):
+  - **0x65** dash→ESC = throttle (byte5) + brake (byte6).
+  - **0x64** ESC→dash = `5A A5 06 20 21 64 00 | mode batt light beep speed error | CRC`; **error byte=0 ⇒ no fault**.
+  - **0x07** start update (payload u32 size, reply 0x0B) / 0x08 data / 0x09 finish / 0x0A reboot.
+- Corrected the ESC emulator (`esc_faker_main.c`) to send the real **0x64** telemetry (was echoing 0x65+zeros).
+
+### Verified — on the real scooter
+- **Fault CLEARED:** with the correct 0x64 reply, the dashboard's traffic changed from **only 0x65**
+  (dead-ESC retry) to **also 0x64 frames** — the conversation a dashboard only has with a live, healthy
+  ESC. The C542 is a working ESC emulator; the user's "comm-fault blocks IAP" hypothesis is confirmed.
+- **Still blocked:** even fault-cleared, the bootloader update-start **CMD 0x07** (correct u32 size; tried
+  SRC 0x3E and 0x20 → 0x21) is **ignored, no 0x0B ack** → the running *app* doesn't handle the bootloader-
+  level command; entering the bootloader needs the separate **app-level "set update flag + reset" trigger**,
+  still unknown (may even come over BLE via the nRF, not this bus). Path: sniff a real app-update session
+  with this rig to capture the enter-bootloader frame, then replay. Evidence:
+  `boards/ble-dashboard/C542_BUS_CAPTURE.md`.
+
+## [2026-06-15] HARDWARE: C542 ESC emulator answers the dashboard live (fault not yet cleared)
+
+### What was changed
+- **ESC emulator** `firmware/dash-tap-c542/c5board/esc_faker_main.c`: a real-time half-duplex slave on
+  PA4 that **oversamples each incoming frame at 4x and decodes it on-chip** (1x real-time sampling drifted
+  and mis-framed — it decoded `AE C8 35 …` for the real `5A A5 05 21 20 …`; 4x oversample + per-byte
+  start-edge re-sync is reliable), validates the checksum, and — for frames addressed to the ESC
+  (DST 0x20) — replies as the ESC (SRC 0x20 → DST 0x21) within the turnaround gap. Logs counters +
+  last frames to SRAM for SWD readback. `-DSEND_IAP=1` also injects IAP-enter once comms look healthy.
+
+### Why
+User: "the dash sits in a fault mode … it could be it doesnt want to switch to iap if there a comm
+faults. develop also a scooter faker on the c5 to emulate the communication to the ESC … test it until
+it works."
+
+### Verified — on the real scooter
+- The emulator **works**: it received **283+** checksum-valid dashboard polls
+  (`5A A5 05 21 20 65 00 04 28 22 02 00 …`) and answered **every one** as the ESC, in real time.
+- **Fault not cleared / IAP still refused:** with the emulator answering and **11** IAP-enter frames
+  injected, the dashboard **kept polling CMD 0x65 unchanged** (rx_frames 71→160→283) and never entered
+  the bootloader. The ESC reply content is a guess (echo CMD + zero payload); the dashboard wants the
+  real CMD 0x65 data, which is proprietary and not in the repo. To crack it: capture a **real ESC**
+  answering the dashboard (for the exact CMD 0x65 reply) and/or a **real app update** (for the true
+  IAP-entry frame) with this C542 rig, then replay. Evidence: `boards/ble-dashboard/C542_BUS_CAPTURE.md`.
+
+## [2026-06-15] HARDWARE: C542 software-UART captured + decoded a real frame from the scooter
+
+### What was changed
+- **`firmware/dash-tap-c542/c5board/`** grew a bring-up + logic-analyzer toolkit run on the **real
+  NUCLEO-C542RC wired to the scooter**: `probe_clock.c` (reads the live core clock = 48 MHz),
+  `diag_main.c` (edge-activity per wire), `diag2_main.c` (bit-timing histogram), `cap_raw_main.c`
+  (4×-oversampled raw capture of PA4 to SRAM) + `decode_raw.py` (host SWD-read + offline UART decode).
+  All flashed via STM32CubeProgrammer over the on-board ST-LINK/V3; results read back over SWD.
+
+### Why it was changed
+User: "its wired continue." Brought the C542 software-UART up against the live scooter bus.
+
+### Verified — on the real scooter
+- Connected to the board: **NUCLEO-C542RC, STM32C542, Cortex-M33, 256 KB, 3.27 V** (ST-LINK V3).
+- Live core clock read off-chip = **48 MHz**; bit-bang self-calibrates (48e6/115200 ≈ 416 cyc/bit).
+- **Live wire = A2/PA4** (7012 edges/2 s vs **A0/PA0 dead**, 1 edge) — the wire-finder hypothesis,
+  confirmed electrically.
+- Measured bit timing ≈ 416 cyc → **115200 baud** confirmed.
+- **Decoded a checksum-VALID Ninebot frame, reproduced across 3 captures:**
+  `5A A5 05 21 20 65 00 04 28 22 02 00 04 FF` = **dashboard (SRC 0x21) → ESC (0x20), CMD 0x65**.
+  Matches the verified `5A A5` framing + `Σ^0xFFFF` checksum exactly, and the wire-finder's
+  `SRC 0x21 → dashboard side`. Recorded in `boards/ble-dashboard/C542_BUS_CAPTURE.md`.
+- This is the first measured confirmation of the dashboard bus electrical+protocol layer (previously
+  "reference-derived/unverified"): the whole software-UART **read** path works end-to-end on real silicon.
+
+### Build-bug caught (looked like hardware damage, wasn't)
+The c5board Makefile hardcoded its output as `build/selftest.*` regardless of `MAIN`, so re-flashing an
+*older* source after building a newer one didn't rebuild (make saw the binary "up to date") — it kept
+flashing the **xcvr** binary. This masqueraded as "the C542 stopped running / SRAM is garbage" (PC was
+stuck in the xcvr mailbox poll loop). Fixed: output is now `build/$(MAIN:.c=).*` (a trailing-comment
+whitespace bug first made the name empty — also fixed). Re-verified: selftest → `C542600D` (cores pass on
+silicon) and cap_raw → the live scooter frame. **No hardware was damaged.**
+
+### TX verified too — full bidirectional link on the real scooter
+With PA4 driven **push-pull** (open-drain rises too slowly for the bus capacitance at 115200) and the
+half-duplex turnaround fixed (OUTPUT only during TX, INPUT for RX), the C542 both transmits
+(per-bit read-back == transmitted bytes, e.g. `AA BB CC DD`) and receives the live bus (80+ bytes/window
+of the dashboard's periodic frame). `xcvr_main.c` + `c5_xcvr.py`. **Software-UART is fully bidirectional
+on the real C542↔scooter link.**
+
+### Bootloader dump: BLOCKED on the unknown stock IAP-entry command (not a capability gap)
+The dump needs the dashboard in stock IAP mode. **None** of the plausible "enter update" commands made it
+stop polling / enter the bootloader — all transmitted cleanly (echo OK) and were **ignored**, dashboard
+kept polling: `CMD 0x02/ARG 0x07` (PC→ and App→dash), `CMD 0x07` direct, `CMD 0x02/ARG 0xF0`. The repo's
+IAP docs are partly wrong (they say `LEN=4+payload`; the bus proves `LEN=payload`), and the real entry
+sequence isn't established. **Non-destructive** — wrong commands are ignored (no erase), so nothing was
+harmed; the dashboard runs normally. **Path forward:** sniff a real Ninebot-app update session with this
+C542 rig to capture the exact entry frame, then replay it. TX, RX, the dumper app, and the IAP/ECDSA flow
+are all built + verified; only the entry trigger is missing.
+
+## [2026-06-15] On-silicon: verified cores run on the real STM32C542 (flash + SWD readback)
+
+### What was changed
+- **`firmware/dash-tap-c542/c5board/`**: a real Cortex-M33 firmware (`selftest_main.c` + `c542.ld` +
+  Makefile) that runs the verified `soft_uart.c` + `nbu.c` cores on the actual STM32C542 and writes a
+  result to a fixed SRAM slot (`0x20000000`, section `.result`) for SWD readback. Reuses the RC-Servo
+  STM32CubeC5 SDK (CMSIS + `system_stm32c5xx.c` + `startup_stm32c542xx.s`); `nbu_prog.c` also compiles
+  for the target. Built with `arm-none-eabi-gcc -mcpu=cortex-m33` (864 B).
+
+### Why it was changed
+User: "DO IT ON THE SCOOTER … use the c5 … continue until it works." Brought the verified protocol cores
+up on the physical NUCLEO-C542RC to prove they execute on real silicon (the part that can be done from a
+PC + ST-LINK; the dashboard-side wiring/power is a hands-on bench step).
+
+### Verified — on real hardware
+- Connected over ST-LINK/V3 → **NUCLEO-C542RC, STM32C542 (ID 0x44F), Cortex-M33, 256 KB, 3.27 V**.
+- Flashed `selftest.bin` to 0x08000000 via STM32CubeProgrammer (download verified, MCU reset).
+- SWD read of `0x20000000`: `5A1F7E57 00000002 00000002 C542600D` → magic ok, **2/2 cores pass**
+  (software-UART byte loopback + NBU checksum) **C542600D = PASS on silicon**.
+- Boundary (honest): the full scooter bootloader dump + 16/32 IAP chain additionally need the C542
+  clock/USART-VCP bring-up (CubeIDE) and **physically wiring A0/A2 to the dashboard plug + powering the
+  scooter** — a bench step that cannot be driven from a shell. The sim chain is GO and all binaries staged.
+
+## [2026-06-15] C542 software-UART IAP programmer + 16/32 self-update chain (sim-verified)
+
+### What was changed
+- **Software (bit-banged) UART** (`firmware/dash-tap-c542/soft_uart.{h,c}`): 8N1 LSB-first
+  framing logic so the C542 talks the Ninebot/NBU protocol on a plain GPIO (PA0) — no
+  hardware-USART AF needed on the pin.
+- **On-chip NBU programmer** (`nbu_prog.{h,c}`): C port of `nbu_send.py` (BEGIN/DATA/END +
+  ACK/retransmit), wire-compatible with the bootloader's `nbu.c` receiver. This is what the
+  C542 runs to flash via IAP.
+- **C542 programmer firmware** (`main_programmer.c`, Cube HAL glue): bit-bang TX/RX on PA0
+  via the DWT cycle counter, streams a signed `.sfw` from the PC (VCP) and flashes it to the
+  target BL over the software UART. PC feed: `tools/flasher/c5_feed.py`.
+- **Installer @ the 32 offset** (`firmware/migration16/`): reuses the migration `updater.cpp`
+  (now address-overridable via `MIG_BL_BASE`) linked at **0x08008000**; it writes the
+  relocated bootloader to **0x08004000** from RAM (verify-before-erase + read-back). Builds to
+  9184 B; embeds the 6320 B relocated BL.
+- **Verify-before-flash gate** (`tools/verify_c5_flash.py`): one command that proves the whole
+  flow in simulation with the REAL code, then confirms the on-target binaries build. Prints GO/NO-GO.
+
+### Why it was changed
+User: "use the c5 with a software implementation of the uart protocol to create the bootloader
+dump and verify the new bootloader … BL at 16 offset flashes an app to 32 offset, then the
+installer from 32 writes a bootloader to 16. continue until it works … flash via iap, you don't
+need to touch the bench, everything is there." → built + verified the full chain in simulation.
+
+### Verified
+- Software-UART NBU/IAP programmer: ✅ `sim/test_c5_prog.cpp` **6/6** — bit-codec fidelity + a
+  777-B image flashed through the bit-level software UART from `nbu_prog` into the real `nbu.c`
+  receiver, reconstructed byte-for-byte.
+- IAP chain @ 16/32: ✅ `sim/test_iap_chain.cpp` **11/11** (real ECDSA verify) — BL@0x08004000
+  receives a signed app over the software UART, writes it to 0x08008000 and **accepts only the
+  genuine signature (tamper rejected)**; installer@0x08008000 writes a BL to 0x08004000 with
+  read-back; the real BL region 0x08000000-0x08003FFF is provably never touched.
+- On-target builds: ✅ relocated BL (`BL_BASE=0x08004000`, 6320 B) + installer@0x08008000 (9184 B,
+  links at 0x08008000, writes 0x08004000).
+- **Gate**: ✅ `python tools/verify_c5_flash.py` → "VERDICT: GO". (Physical flashing via the C542
+  is the bench step; the simulated chain + staged binaries are proven first.)
+
+## [2026-06-14] NUCLEO-C542RC dashboard-plug tap + bootloader-dump bridge
+
+### What was changed
+- **Verified the hardware claim** ("dashboard connected via an STM32C5, Arduino A0/A2"):
+  STM32C5 is a real Cortex-M33 @144 MHz family (announced 2026-03); the **NUCLEO-C542RC**
+  (STM32C542RCT6) is the Nucleo-64 with on-board ST-LINK + Arduino Uno V3 headers (the
+  RC-Servo project's "stm32c542"). On that board **A0 = PA0** and **A2 = PA4** (confirmed from
+  the board devicetree). These are GPIO/USART pins (not ST-LINK SWD), so the C5 MCU itself
+  bridges to the dashboard — the user clarified A0/A2 tap the **two wires of the internal plug**
+  (one to the BT/nRF chip, one to the dashboard/STM32) and asked the tool to find out which.
+- **`firmware/dash-tap-c542/`** — a NUCLEO-C542RC tap/bridge:
+  - `wire_finder.{h,c}` (host-tested logic): passively sniffs both taps at 115200, decodes the
+    Ninebot `5A A5` framing, and classifies each wire (idle / noise / Ninebot) + names the
+    transmitting SRC address (0x21 → BLE/nRF, 0x3E → App, …) so the operator maps BT vs dashboard.
+  - `main.c` (Cube HAL reference glue, built in STM32CubeIDE): FIND mode reports the verdict over
+    the ST-LINK VCP, then BRIDGE mode transparently relays the chosen wire — so the existing UART
+    tools run straight through. STM32C542-specific USART/AF spots flagged `<<< CONFIRM IN CUBEMX >>>`.
+- **`tools/dump_bootloader_c5.py`** — reads the `[FIND]` report (shows which wire is which) then
+  captures the bootloader dump via `dump_bootloader.py`'s parser. **`tools/dash_tap_sim.py`** runs
+  the whole bench-free verification.
+- **Docs**: `firmware/dash-tap-c542/README.md`, `docs/DASHBOARD_DUMP_C542.md`, and a bench-tooling
+  section in `boards/ble-dashboard/PINOUT.md` (A0=PA0, A2=PA4, sourced).
+
+### Why it was changed
+User: "the dashboard is connected via a stm32c5 with the ardunio header a0 and a2 — verify it and
+make the bootloader dump"; then clarified A0/A2 are the two plug wires (BT + dashboard) and the tool
+should test/find which is which.
+
+### Verified
+- Wire-finder logic: ✅ `firmware/dash-tap-c542/sim/test_wire_finder.cpp` **9/9** (`-Werror`) —
+  classifies A0=Ninebot/A2=noise, idle detection, bad-checksum counted, SRC→role naming.
+- PC parsing: ✅ `dump_bootloader_c5.py --selftest` **6/6** — parses the FIND report, identifies the
+  bridged wire, and reconstructs+CRC-checks the dump end-to-end through the bridge text.
+- One-command: ✅ `python tools/dash_tap_sim.py` → "C542 tap logic verified".
+- **Not** verified (needs the bench): the STM32C542 USART/AF for PA0/PA4 + VCP (CubeMX resolves) and
+  the live capture. The C542 is the transport; reading the target flash still uses the on-target
+  dumper app (`firmware/bootloader-dumper/`).
+
+## [2026-06-14] Relocatable bootloader build (`BL_BASE`) — test-before-overwrite
+
+### What was changed
+- **`BL_BASE` build config** (`bootloader/stm32/Makefile` + new `stm32f103c8_bootloader.ld.in` template):
+  links the 16 KB bootloader at an arbitrary base instead of the fixed `0x08000000`, so a build can be
+  placed in an **application slot** and launched there by the already-installed bootloader — exercising it
+  **without ever writing `0x08000000`** (no brick risk). `make TARGET=ble BL_BASE=0x08004000` → app-slot
+  of the custom BL (+16 KB); `BL_BASE=0x08001000` → app-slot of the stock 4 KB BL (Phase 2). Outputs go to
+  a per-base dir `build/ble_at_<base>/…_at_<base>.{elf,bin,hex}` (separate objects, so the new base
+  actually recompiles).
+- **Base-derived layout** (`bootloader/stm32/include/bootloader_config.h`): `BOOTLOADER_START`,
+  `APP_START_ADDR` (= base + 16 KB), `APP_MAX_SIZE` and `APP_PAGES` now derive from a `BL_BASE_ADDR`
+  macro (default `0x08000000`), filling the gap up to the config page — so the relocated app region never
+  overlaps `0x08000000`. The default build is byte-equivalent in layout (app `0x08004000`, 46 KB).
+- **Runtime VTOR** (`bootloader_main.c`): `main()` now sets `SCB->VTOR = BOOTLOADER_START` first thing, so
+  a relocated build's SysTick/exceptions vector into its own (moved) table when launched from the app slot.
+  For the default build this writes the reset-default `0x08000000` (harmless).
+- **Verifier** `tools/verify_reloc_build.py`: builds both variants and asserts the relocated image's vector
+  table + reset vector are in the relocated region, it fits 16 KB, its erase region is above `0x08000000`,
+  and the default build still vectors at `0x08000000`.
+
+### Why it was changed
+User: "make a buildconfig for the bootloader to be mapped to offset 16k (for testing before overwriting)."
+Lets the new bootloader be validated live from the app slot before the harder-to-reverse SWD flash to
+`0x08000000`; also supplies the previously-missing build for Phase 2 of `docs/guides/DEPLOYMENT.md`.
+
+### Verified
+- Build: ✅ default (`0x08000000`) and relocated (`0x08004000`) both build, 6320 B < 16 KB.
+- Relocation: ✅ `verify_reloc_build.py` 6/6 — relocated `.isr_vector`/entry at `0x08004000`, reset vector
+  launchable (SP `0x20005000`, entry `0x080040ED`), VTOR literal `= 0x08004000` (objdump-confirmed), app
+  slot `0x08008000` (cannot erase `0x08000000`); default still vectors at `0x08000000`.
+- Gate: ✅ `/verify-safe` on the default build → "SAFE to flash, UPDATE path preserved, SECURE BOOT sound".
+
+## [2026-06-14] Bootloader update transport: XMODEM → NBU (framed half-duplex, one-wire bus)
+
+### What was changed
+- **New NBU update protocol** (`bootloader/common/include/nbu.h` + `nbu.c`): replaces XMODEM as the
+  bootloader's firmware-update transport. The Ninebot bus is a **single half-duplex wire** — XMODEM's
+  free-running byte stream (with echo + turnaround) is unsuitable there. NBU is **framed request→ACK
+  turn-taking** over the firmware-verified Ninebot frame `5A A5 | LEN | SRC | DST | CMD | ARG | payload |
+  CK` (LEN = payload count; `CK = sum(LEN..payload) ^ 0xFFFF`, LE). Opcodes align with the stock IAP:
+  `0x07 BEGIN` (u32 size), `0x08 DATA` (u16 seq + data), `0x09 END`, `0x0A RESET`; the bootloader replies
+  `0x06 ACK` with `ARG = status`. Per-block sequence numbers give half-duplex-safe retransmit (duplicate →
+  re-ACK, out-of-order → NACK with the expected seq).
+- **Integrated into both bootloaders** (drop-in for `xmodem_receive`, same IO/callback shapes):
+  `bootloader/stm32/src/bootloader_main.c`, `bootloader/nrf51/src/bootloader_main.c`, and the platform
+  `bootloader/common/src/bootloader.c`. Build files swapped `xmodem.c → nbu.c` (`stm32`/`nrf51` Makefiles,
+  `CMakeLists.txt`); added per-board `MY_BUS_ADDR` (0x21 BLE / 0x22 BMS / 0x21 nRF51 via relay).
+- **Removed** the XMODEM transport entirely: deleted `bootloader/common/src/xmodem.c`, `…/include/xmodem.h`,
+  and `tools/flasher/xmodem_send.py` (the latter also had a reversed SRC/DST + wrong LEN convention,
+  predating the protocol verification).
+- **New PC sender** `tools/flasher/nbu_send.py` — verified framing (LEN=payload), per-block ACK with
+  retransmit/resync, half-duplex echo filtering, and a hardware-free `--selftest`.
+- **Bug fixed while integrating**: `nbu_receive` computed the frame length in a `uint8_t` (`LEN+7` wraps),
+  making the bounds check dead — a garbage frame with `LEN ≥ 251` could over-read the 256-byte buffer.
+  Widened `idx`/`expected` to `uint16_t` so oversized frames are rejected (`-Werror=type-limits` caught it).
+- **Docs swept** XMODEM → NBU across PROJECT_DOC, bootloader/README, CLAUDE.md, SECURE_BOOT_PLAN,
+  BOOTLOADER_V2_CONCEPT, NRF51_BLE_FIRMWARE, migration/README, the `guides/` and `.claude/commands/`,
+  requirements, ToDo, `.vscode/tasks.json`, and `.claude/settings.json`. (`CRC16/XMODEM` algorithm names
+  and CHANGE_LOG history left intact; the design rationale kept as a one-line "why not XMODEM" note.)
+
+### Why it was changed
+User: "xmodem shouldnt be possible. it only has onewire uart correct me if i am wrong" → "rework and fix
+documentation." Correct — the dashboard cable's data line is a single half-duplex Ninebot-bus wire, so the
+update transport must be framed half-duplex, not a byte-stream protocol.
+
+### Verified
+- Host test: ✅ `bootloader/tests/test_nbu.cpp` 6/6 (happy path reconstructs firmware byte-for-byte + ≥6
+  ACKs; duplicate written once; out-of-order → exactly one NACK), compiles under `-Wall -Wextra -Werror`.
+- Cross-language: ✅ `bootloader/tests/nbu_xcheck.{py,cpp}` — frames built by the **Python sender** replay
+  through the **C receiver** and reconstruct a 777 B (non-chunk-aligned) image byte-for-byte.
+- Sender selftest: ✅ `nbu_send.py --selftest` (framing, parser round-trip, echo filtering, bad-CK reject).
+- Build: ✅ both targets (STM32 8628 B < 16 KB, nRF51 6868 B) via the Makefiles, `-Werror` clean.
+- Gate: ✅ `/verify-safe` → "SAFE to flash, UPDATE path preserved, SECURE BOOT sound"; secure-boot 9/9.
+
+## [2026-06-14] Bootloader migration apps (RC-Servo-aligned) + odometer protocol/persistence
+
+### What was changed
+- **RC-Servo bootloader study** (reference `C:/Users/Layer/Documents/RC-Servo`): adopted its memory
+  layout + `bl_updater` model. New `docs/BOOTLOADER_V2_CONCEPT.md`: **16 KB BL @0x08000000 / 40 KB app
+  @0x08004000 / 4 KB factory-data @0x0800E000 / 4 KB user-data @0x0800F000** (fills the F103C8 64 KB),
+  version+signature trailer + anti-rollback, and the stock→custom migration.
+- **Migration apps** (`firmware/migration/`, built + **Renode-verified**): the stock 4 KB bootloader
+  flashes apps at 0x08001000, which overlaps the new 16 KB BL region — solved with two packed apps:
+  `trampoline` (@0x08001000, jumps to 0x08004000) + `bl_updater` (@0x08004000, embeds the new BL via
+  `.incbin`, erases+writes it to 0x08000000 from **RAM `.ramfunc`** with IRQs off, verify-before-erase +
+  read-back). `pack.py` combines them into `migrate_big.bin`. `tools/renode_migration.py` runs the whole
+  chain in Renode and asserts the new BL lands at 0x08000000.
+- **Dashboard⇄VESC odometer protocol** (`docs/PROTOCOL_ODOMETER.md`): NB+ ODO frames (GET/STREAM/SEED)
+  + a reliable **PREPARE_OFF** handshake so the dashboard captures the final trip and **saves lifetime
+  hours/km on every power-off before the Daly cuts VESC power** — the always-on keeper owns the lifetime
+  totals; exposed to the stock app via regs 0x32/0x29.
+- **Odometer persistence** (`firmware/decompiled/ble/include/odometer_store.h`, host-tested): wear-leveled
+  append-only ring over the 4 KB user-data page (256 × 16 B records, page-erase only on wrap, CRC32);
+  power-loss mid-write is ignored. 4 tests (suite **157/157**).
+
+### Why it was changed
+User: "check the RC-Servo bootloader (similar memory layout); new dashboard↔VESC protocol — always-on
+keeper saves lifetime hours/km on every power-off; upgrade the bootloader concept; develop 2 apps
+(4K→16K trampoline + bootloader-flasher) packed into one big app; test with simulation."
+
+### Verified
+- Build: ✅ `firmware/migration` → trampoline 376 B (@0x08001000), updater 6976 B (@0x08004000, embeds the
+  6172 B BL), `migrate_big.bin` 19264 B.
+- Sim: ✅ `tools/renode_migration.py` — trampoline jumps, updater installs the new 16 KB bootloader at
+  0x08000000 (cookie=BL_INSTALLED; 0x08000000 byte-identical to the embedded BL).
+- Tests: ✅ host suite **157/157** (incl. 4 new `Odometer.*`).
+
+## [2026-06-13] Firmware safety gate (/verify-safe) + secure-boot bootloader verified & fixed
+
+### What was changed
+- **Workflow — `/verify-safe` gate** (`tools/verify_firmware_safe.py`, `.claude/commands/verify-safe.md`,
+  CLAUDE.md step 2, memory `verify-firmware-safe`): mandatory after every firmware change — proves the
+  change is **SAFE** (no brick: no writes to bootloader `0x08000000-0x08000FFF` / option-byte / RDP flash,
+  valid vector @ 0x08001000, 5000 ms watchdog resets+recovers), the **UPDATE path is preserved** (image is
+  bootloader-loadable → always reflashable, never locked out), **regression** suite green, and **SECURE
+  BOOT** sound.
+- **Secure-boot bootloader VERIFIED + FIXED** (the user's explicit ask). `tools/verify_secureboot.py` +
+  `bootloader/tests/` (`test_secureboot.cpp` runs the bootloader's *own* verify code; `make_test_sfw.py`
+  signs a test image). Verification found **5 bugs that made the "secure" boot non-functional**, all fixed:
+  1. signer/verifier `.sfw` format mismatch (`tools/signing/sign_firmware.py` wrote `"SFW1"` + wrong layout
+     + no header_crc32; bootloader expects `"SFW0"`) → signer rewritten to the exact `sfw_header_t` layout;
+  2. **`bn_mod_mul` discarded the high 256 bits** of the product (reduction was a stub) → all ECDSA verifies
+     failed → replaced with correct bit-serial reduction (`bootloader/common/src/ecdsa.c`);
+  3. `-Werror` dead code (`verify_installed_app`, unused `lhs`) → didn't compile → removed;
+  4. missing `mem*` under `-nostdlib` → didn't link → `bootloader/common/src/libc_min.c`;
+  5. nRF51 missing `-lgcc` (Cortex-M0 64-bit helpers) → didn't link → fixed in `bootloader/nrf51/Makefile`.
+
+### Why it was changed
+User: "add to your workflow to test every firmware change [for] if it is safe and the update function isnt
+lost. verify the secureboot bootloader."
+
+### What it does / expected behaviour
+The gate refuses to bless a firmware change that could brick the device or remove the ability to reflash,
+and confirms the secure bootloader only boots correctly-signed firmware. The secure boot now actually
+works (it was non-functional on five independent axes before).
+
+### Verified
+- `tools/verify_secureboot.py`: **9/9** — genuine PC-signed image accepted; flipped firmware byte / flipped
+  signature / wrong key / wrong magic / wrong target all rejected. Both targets build (STM32 6172 B / nRF51
+  6464 B, within 16 KB).
+- `tools/verify_firmware_safe.py`: **VERDICT: SAFE to flash, UPDATE path preserved, SECURE BOOT sound**
+  (ctest 153/153 + dashboard_sim no-brick + ble_sim + secure-boot).
+
+## [2026-06-09] Bluetooth (nRF51) firmware — BLE session simulator
+
+### What was changed
+- **BLE session simulator** (`firmware/decompiled/nrf51822/sim/ble_sim.cpp`): runs the real
+  `Nrf51Firmware` on the host `SimNrf51Hardware` through a full session — advertising → phone connect →
+  MiIO pairing → an **end-to-end register read** (phone→nRF51→STM32→nRF51→phone notification) → Haystack
+  mode switch → VESC tunnel — with an annotated transcript. Wired into the `firmware/decompiled` CMake as
+  a `ble_sim` ctest; `tools/ble_sim.py` runner; `sim/README.md`.
+
+### Why it was changed
+User: "test the bluetooth firmware in the simulator."
+
+### What it does / expected behaviour
+Demonstrates the BLE firmware end-to-end without a radio/phone/chip. Real BLE can't run in a chip
+emulator (Renode has no nRF51; the Nordic SoftDevice is proprietary), so it's a functional simulation at
+the firmware/HAL boundary (SoftDevice modelled by `SimSoftDevice`), running the actual firmware logic.
+
+### Verified
+- `ble_sim`: **14/14 checks pass** — advertises `NBScooter0001`; phone connects + MiIO `FLASH_REGISTERED`;
+  battery read relayed verbatim to the STM32 and the phone notified with `5A A5 02 20 3E 04 22 50 00 29 FF`
+  (battery=80) — the **same frame the Renode dashboard test produced**; Haystack/FindMy adv well-formed;
+  VESC tunnel frame/unframe CRC ok.
+- Full `ctest`: **3/3** (all_firmware_tests 153/153 + dashboard_sim 16/16 + ble_sim 14/14).
+
+## [2026-06-09] UART protocol confirmed in-sim + stock-bootloader dumper app
+
+### What was changed
+- **UART protocol confirmation in Renode** (`firmware/dashboard/sim/renode/uart_protocol.resc`):
+  injects a Ninebot `0x64` display frame on USART2 (battery=80) and a phone-app `READ reg 0x22` on
+  USART1 into the **real running firmware**, and verifies the response is byte-for-byte
+  `5A A5 02 20 3E 04 22 50 00 29 FF` (CMD 0x04 read-response, value 80, valid `~Σ` checksum). Confirms
+  framing / `LEN=payload` / address map / READ→READ_RESPONSE / checksum / the VESC→dash→app path.
+- **Stock-bootloader dumper** (`firmware/bootloader-dumper/`): a 744-byte app linked @0x08001000
+  (**flashed via the stock IAP**) that reads the otherwise-undumpable 4 KB stock bootloader
+  (`0x08000000–0x08000FFF`), CRC32s it, and emits it over the cable UART (USART2) as marker-framed hex.
+  Read-only — cannot brick. Plus `tools/dump_bootloader.py` (receive from a serial port **or** a captured
+  file; verifies the CRC32 and writes the `.bin`), and `sim/dump_verify.resc` + `sim/make_pattern.py`.
+
+### Why it was changed
+User: "confirm your understanding of the UART protocol with the simulator; generate an application to
+dump the bootloader (flashed via the bootloader)."
+
+### What it does / expected behaviour
+The protocol script proves the firmware speaks the documented Ninebot protocol. The dumper recovers the
+stock bootloader (not present in any distributed image) so it can be studied / backed up / combined into
+a full SWD recovery image.
+
+### Verified (run on Renode 1.16.0)
+- Protocol: injected frames → response `5A A5 02 20 3E 04 22 50 00 29 FF` (exact match).
+- Dumper: pattern at 0x08000000 → device CRC32 `0xDD3895E5` == host CRC32; `dump_bootloader.py` reconstructed
+  **4096 bytes byte-for-byte identical** to the pattern (signature `STOCKBOOT_v1.337`).
+- Both dashboard + dumper firmware build clean (arm-none-eabi-g++ 14.2); dashboard host suite still 153/153.
+
+## [2026-06-09] Renode — instruction-accurate emulation of the real dashboard firmware
+
+### What was changed
+- Added a **Renode** (Antmicro, well-known open-source MCU emulator) setup that runs the **real
+  compiled `dashboard_app.elf`** opcode-by-opcode on an emulated **STM32F103 / Cortex-M3** with a
+  modeled **IWDG**, under `firmware/dashboard/sim/renode/`:
+  - `dash_overlay.repl` — adds the `STM32_IndependentWatchdog` (@0x40003000, 40 kHz LSI) the stock
+    platform lacks + RCC ready-bit tags the firmware busy-waits on in `clock_init()`.
+  - `dash_adc.repl` — models ADC1 as silent memory (so polling loops don't flood Renode with warnings).
+  - `dashboard_healthy.resc` / `dashboard_watchdog.resc` — the two scenarios; mirror the app reset
+    vector to 0x0 (emulating the stock bootloader) so a watchdog reset reboots.
+  - `README.md`.
+- `tools/renode_dashboard.py` — builds the DASH_DEBUG firmware, runs both scenarios headless, counts
+  `[BOOT]` banners on USART2, and asserts the verdict.
+- Updated the sim/firmware READMEs (Renode is now implemented, not "future").
+- Installed Renode 1.16.0 via `winget install Renode.Renode`.
+
+### Why it was changed
+User asked to use a **well-known 3rd-party software** to simulate the chip (rather than the bespoke
+functional sim).
+
+### What it does / expected behaviour
+Runs the actual firmware binary on Renode's emulated STM32F103. The DASH_DEBUG build prints `[BOOT]` on
+USART2 at each boot, so reboots are observable: healthy = the IWDG stays fed; ADC-fault = the IWDG resets
+the MCU and it recovers. Complements the functional sim (instant/CI) by also covering the real opcodes
+and register sequences.
+
+### Verified (actually run on Renode 1.16.0)
+- **Healthy**: exactly **1 `[BOOT]`** in 13 s emulated (~40 s real) — watchdog never fires; firmware
+  streams `5A A5 … 65` throttle frames.
+- **Watchdog/fault**: **3 `[BOOT]`s** in 13 s emulated (~15 s real) — the 5000 ms IWDG resets the
+  Cortex-M3 about every 5 s and it reboots each time.
+- `tools/renode_dashboard.py` → `VERDICT: PASS` (healthy=1, watchdog>=2).
+
+## [2026-06-09] Dashboard chip simulator — no-brick verification
+
+### What was changed
+- **Chip simulator** (`firmware/dashboard/sim/`): a functional STM32F103C8 model that runs the **exact**
+  dashboard firmware logic against modeled peripherals to verify it can't brick the hardware before
+  flashing:
+  - `sim_chip.h` — peripheral model: time, **register-accurate IWDG (real 5000 ms)**, USART1/2 queues,
+    ADC, GPIO/LEDs/button, clock, and a **flash brick audit** (flags any write to the bootloader region
+    `0x08000000-0x08000FFF`, option bytes/RDP).
+  - `sim_dash_hal.cpp` — `dash::hal` implemented against `SimChip` (drop-in replacement for `dash_hal.cpp`).
+  - `sim_main.cpp` — 4-scenario harness (healthy / missing-ADC / VESC-drop / no-brick audit), 16 checks,
+    prints a "NO BRICK RISK" verdict; validates the built `.bin` vector table.
+  - `sim/README.md`.
+- **Refactor:** extracted the dashboard main loop into `firmware/dashboard/include/dash_app.h`
+  (`DashApp::init()/step()`) so the **target and the simulator run identical code**; `src/main.cpp` is
+  now a thin `for(;;) app.step()`.
+- **Bug fixed (found by the simulator):** the watchdog `CLOCK` subsystem was kicked only once at init but
+  required with a 2000 ms staleness — it would have **falsely reset healthy hardware** after ~7 s. Now
+  kicked every loop (the clock runs whenever the loop runs). `dash_app.h`.
+- **Tooling/build:** `tools/dashboard_sim.py` (build + run the sim); `dashboard_sim` added to the
+  `firmware/decompiled` CMake as a second ctest.
+
+### Why it was changed
+User request: "build a simulator for the dashboard to verify you don't brick the hardware — it needs to
+be able to simulate the chip."
+
+### What it does / expected behaviour
+Runs the shipping firmware logic against a simulated STM32F103 (peripherals + time + IWDG) and asserts
+the no-brick invariants. It is fast, deterministic, and runs in CI alongside the unit tests. For
+instruction-exact simulation of the `.elf`, Renode/QEMU is the documented complement.
+
+### Verified
+- Build: ✅ `dashboard_sim` (g++ 15.2, `-Wall -Wextra`); target firmware rebuilds (3808 B) after refactor.
+- Tests: ✅ `ctest` — **2/2** (`all_firmware_tests` 153/153 + `dashboard_sim` **16/16**, "NO BRICK RISK").
+- Functional: the sim caught and we fixed the CLOCK false-reset bug; missing-ADC reset cadence measured
+  at ~5000 ms; recovery (no boot loop) confirmed; `.bin` vector table valid (SP=0x20005000, reset in app).
+
+## [2026-06-09] Dashboard firmware (5000 ms watchdog) + Python tooling + secure-boot plan
+
+### What was changed
+- **Dashboard firmware (real STM32F103C8 target, builds with arm-none-eabi-g++ 14.2):**
+  `firmware/dashboard/` — app linked @ `0x08001000`; `src/main.cpp` integrates the host-tested modules
+  (`dash_bridge`, `dash_keeper`, `daly`) over a poll loop; `src/dash_hal.{h,cpp}` register-level drivers
+  (clock 72 MHz, SysTick, **IWDG 5000 ms**, GPIO, USART1/2 incl. half-duplex, ADC); `startup_stm32f103.s`
+  (relocates VTOR to the app base); `stm32f103c8_app.ld`; `Makefile`; `README.md`. Output `.bin` = ~3.7 KB,
+  vector table verified (SP=0x20005000, reset in app region).
+- **Hard requirement — 5000 ms watchdog (new Req 16):**
+  `firmware/decompiled/common/include/watchdog_supervisor.h` — `WatchdogSupervisor` (feed the IWDG only
+  while every *required* subsystem is fresh; withhold → reset if something is missing) + `iwdg_params()`
+  (PR=4, RLR=3124 @ LSI 40 kHz → exactly 5000 ms). 3 host tests added (suite now **153/153, 472 assertions**).
+- **Python scripts:**
+  - `tools/analysis/iwdg_config.py` — IWDG PR/RLR calculator (single source of truth, mirrors the C++).
+  - `tools/build_dashboard.py` — build the firmware (+ optional host tests) and validate the `.bin` vector
+    table before flashing.
+  - `Target/dashboard_watchdog_test.py` — UART HW test: confirm a reset lands in the 5 s window when a
+    required dependency is missing (DASH_DEBUG build).
+- **Secure-boot follow-on (design only, conditional):** `docs/SECURE_BOOT_PLAN.md` (per-chip feasibility:
+  STM32 ECDSA bootloader + WRP/RDP, nRF51 + APPROTECT, BMS/VESC N/A; **irreversibility caveats** —
+  RDP2 is permanent) + `Documentation/ToDo/secure-boot.md`. Reuses the existing `bootloader/` ECDSA-P256.
+- **Docs:** Req 16 added to `requirements.md` (+ traceability row); `.gitignore` `build*/`.
+- **Module tweak:** `daly_soft_uart.h` — gated the `std::function`-based `DalyClient` (and `<functional>`)
+  behind `NINEBOT_DALY_NO_CLIENT` so the bare-metal firmware uses only the free frame builders.
+
+### Why it was changed
+User request: "create python scripts and make a firmware for the dashboard; **hard requirement: a
+watchdog with 5000 ms timeout** (reset if something is missing); then, if it works well enough, design a
+custom bootloader with **secure boot on every chip where possible**."
+
+### What it does / expected behaviour
+A flashable dashboard firmware that bridges the app↔VESC, drives inputs/LEDs, and **self-recovers via a
+5000 ms IWDG** that only gets fed while required subsystems are alive. The Python tools build/validate it
+and verify the watchdog on hardware. Secure boot is staged as the next step with the lock/irreversibility
+risks called out.
+
+### Verified
+- Build (host): ✅ suite **153 passed / 0 failed, 472 assertions** (incl. 3 watchdog tests).
+- Build (target): ✅ `firmware/dashboard` → `dashboard_app.bin` (3672 B), arm-none-eabi-g++ 14.2,
+  `-Wall -Wextra`, vector table validated (SP=0x20005000, reset=0x080010ED).
+- Tools: ✅ `iwdg_config.py` (5000.0 ms, PR=4/RLR=3124, 0.00% error); `build_dashboard.py` (builds +
+  validates the image).
+- HW: ⏳ pending (multimeter pin check + on-device watchdog/reset test via `dashboard_watchdog_test.py`).
+
+## [2026-06-09] No-solder flash plan, dashboard pinout research, Daly sourcing, BLE/dash firmware modules
+
+### What was changed
+- **Firmware (implemented + host-tested, 16 new tests, full suite 150/150):** six header-only modules
+  that realize the previously design-only `DASHBOARD_FIRMWARE.md` / `NRF51_BLE_FIRMWARE.md`:
+  - `firmware/decompiled/ble/include/daly_soft_uart.h` — Daly BMS UART (Req 13): `0x90–0x98` reads +
+    `0xD9/0xDA` MOSFET control, 13-byte framing, checksum, SOC parse, streaming `DalyClient`.
+  - `firmware/decompiled/ble/include/dash_bridge.h` — Ninebot⇄VESC bridge + **synthetic ESC register
+    image** so the stock app reads battery/speed/mode/fault/voltage on a VESC scooter (Req 1/2);
+    `0x65` throttle + `0x64` display handling; **speed-cap removal** (Req 4 — limit writes never clamp).
+  - `firmware/decompiled/ble/include/dash_keeper.h` — power-latch Solution-D FSM (sleep/wake/run/off,
+    Daly on/off, nRF 0xAA/0xAB, VESC disable).
+  - `firmware/decompiled/nrf51822/include/vesc_tunnel.h` — VESC packet framing + CRC16/XMODEM for the
+    2nd NUS (Req 3/10).
+  - `firmware/decompiled/nrf51822/include/haystack.h` — Apple FindMy/OpenHaystack adv builder + rolling-
+    key schedule (Req 15).
+  - `firmware/decompiled/nrf51822/include/mode_ctrl.h` — `0xAA`/`0xAB` NORMAL⇄HAYSTACK switch (Req 15.3).
+  - `firmware/decompiled/tests/test_new_modules.cpp` + CMake — 16 tests locking the byte layouts.
+- **Docs (new):**
+  - `boards/ble-dashboard/DASHBOARD_PINOUT_RESEARCH.md` — cited research: **4-wire G30 dashboard cable**
+    (Red 5V / Black GND / Yellow half-duplex data / Green button), STM32 + nRF51 SWD pads, IAP opcodes
+    confirmed vs the official Ninebot protocol PDF.
+  - `docs/DASHBOARD_NO_SOLDER_FLASH.md` — **no-solder** wiring + flash plan: USB-TTL + serial IAP for the
+    STM32 app (no ST-Link), pogo-SWD for the nRF51 / custom bootloader, decision tree, reversibility.
+  - `boards/bms-battery/DALY_BMS_SELECTION.md` — Daly model comparison (dims/current/port/comms),
+    **AliExpress** buy links/search terms, G30 compartment + pack measurements, **fit verdict**.
+  - `docs/APP_COMPATIBILITY.md` — register-by-register map of what the old app reads ↦ VESC/Daly source,
+    auth-generation guidance (MiIO vs nbcrypto), what stays stock vs custom.
+- **Correction:** stock pack is **10S6P** (60× 18650), not 10S3P — genuine cell `10INR19/66-6`, and
+  3P×≤3.5 Ah can't reach 15.3 Ah. Fixed in `README.md`, `Documentation/PROJECT_DOC.md`,
+  `boards/bms-battery/README.md`. (Other docs — `docs/guides/HARDWARE.md`, `POWER_MANAGEMENT_*`,
+  `VESC_INSTALL_GUIDE.md`, `firmware/decompiled/README.md` — still say 10S3P; sweep pending.)
+
+### Why it was changed
+User request: check project state; deep-research the dashboard pinout; produce a no-solder dashboard
+flash + wiring plan using the update mechanism; continue the app-compatibility analysis; continue
+programming the BLE + dashboard firmware; find a fitting Daly BMS (AliExpress) + compartment fit.
+
+### What it does / expected behaviour
+The new modules give the VESC scooter a stock-ESC face to the original app (synthetic registers), Daly
+control + monitoring, VESC-Tool BLE tunneling, FindMy tracking, and the dashboard power-latch — all
+host-verified. The no-solder plan flashes the STM32 dashboard app via the stock serial-IAP path
+(reversible), with pogo-SWD reserved for the nRF51 and the custom bootloader.
+
+### Verified
+- Build: ✅ `cmake -B build_new -S firmware/decompiled -G Ninja && cmake --build build_new`
+  (g++ 15.2, `-Wall -Wextra -Wpedantic`, clean).
+- Tests: ✅ `firmware_tests.exe` — **150 passed / 0 failed, 463 assertions** (16 new module tests).
+- Flash / Functional (HW): ⏳ pending real hardware (multimeter checks + on-device app pairing listed in
+  the new docs' open-items sections).
+
 ## [2026-06-03] Dashboard + BLE firmware design; improved protocol; app APK disassembled
 
 ### What was changed

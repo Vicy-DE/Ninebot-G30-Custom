@@ -39,10 +39,11 @@ from cryptography.hazmat.primitives.serialization import load_pem_private_key
 
 # ── Constants matching fw_header.h ──────────────────────────────────────────
 
-SFW_MAGIC = b"SFW1"
+# Must match bootloader/common/include/fw_header.h exactly.
+SFW_MAGIC = 0x53465730        # "SFW0" as a little-endian uint32 (SFW_MAGIC in fw_header.h)
 SFW_HEADER_SIZE = 256
+SFW_HEADER_VERSION = 1
 SFW_CRYPTO_ECDSA_P256 = 1
-SFW_HASH_SHA256 = 1
 
 TARGET_IDS = {
     "ble-stm32": 0x01,
@@ -126,55 +127,30 @@ def sign_firmware(
     print(f"  Signature R:   {sig_r.hex()}")
     print(f"  Signature S:   {sig_s.hex()}")
 
-    # ── Build 256-byte header ───────────────────────────────────────────
-    # struct sfw_header layout (see fw_header.h):
-    #   0x00: magic[4]         "SFW1"
-    #   0x04: header_version   uint8
-    #   0x05: crypto_type      uint8
-    #   0x06: hash_type        uint8
-    #   0x07: target_id        uint8
-    #   0x08: fw_version_major uint8
-    #   0x09: fw_version_minor uint8
-    #   0x0A: fw_version_patch uint8
-    #   0x0B: hw_rev_min       uint8
-    #   0x0C: fw_size          uint32 LE
-    #   0x10: fw_crc32         uint32 LE
-    #   0x14: reserved[12]     zeros
-    #   0x20: fw_hash[32]      SHA-256
-    #   0x40: signature[64]    ECDSA (r[32] + s[32])
-    #   0x80: padding[128]     zeros (to reach 256 bytes)
+    # ── Build 256-byte header (EXACT sfw_header_t layout, fw_header.h) ───
+    #   0x00 magic u32       0x04 header_version u32   0x08 fw_version u32
+    #   0x0C target_id u8    0x0D crypto_type u8       0x0E flags u16
+    #   0x10 fw_size u32     0x14 fw_crc32 u32         0x18 header_crc32 u32
+    #   0x1C reserved u32    0x20 fw_sha256[32]        0x40 signature[64] (r||s)
+    #   0x80 padding[128] (0xFF)   (hw_rev_min is CLI-only; not in the C header)
+    header = bytearray(b"\xFF" * SFW_HEADER_SIZE)   # padding defaults to 0xFF
+    fw_version_packed = (version[0] << 16) | (version[1] << 8) | version[2]
 
-    header = bytearray(SFW_HEADER_SIZE)
+    struct.pack_into("<I", header, 0x00, SFW_MAGIC)
+    struct.pack_into("<I", header, 0x04, SFW_HEADER_VERSION)
+    struct.pack_into("<I", header, 0x08, fw_version_packed)
+    header[0x0C] = target_id
+    header[0x0D] = SFW_CRYPTO_ECDSA_P256
+    struct.pack_into("<H", header, 0x0E, 0)                  # flags
+    struct.pack_into("<I", header, 0x10, fw_size)
+    struct.pack_into("<I", header, 0x14, fw_crc32)
+    # header_crc32 covers the first 24 bytes (0x00..0x17)
+    struct.pack_into("<I", header, 0x18, compute_crc32(bytes(header[0x00:0x18])))
+    struct.pack_into("<I", header, 0x1C, 0)                  # reserved = 0
 
-    # Magic
-    header[0:4] = SFW_MAGIC
-
-    # Metadata
-    header[4] = 1  # header_version
-    header[5] = SFW_CRYPTO_ECDSA_P256
-    header[6] = SFW_HASH_SHA256
-    header[7] = target_id
-    header[8] = version[0]  # major
-    header[9] = version[1]  # minor
-    header[10] = version[2]  # patch
-    header[11] = hw_rev_min
-
-    # Firmware size (little-endian uint32)
-    struct.pack_into("<I", header, 0x0C, fw_size)
-
-    # CRC-32 (little-endian uint32)
-    struct.pack_into("<I", header, 0x10, fw_crc32)
-
-    # Reserved (already zero)
-
-    # SHA-256 hash
     header[0x20:0x40] = fw_sha256
-
-    # Signature: r || s
     header[0x40:0x60] = sig_r
     header[0x60:0x80] = sig_s
-
-    # Padding (already zero)
 
     return bytes(header) + firmware_data
 
@@ -266,14 +242,15 @@ def verify_sfw(sfw_path: str, private_key_path: str):
     header = data[:SFW_HEADER_SIZE]
     firmware = data[SFW_HEADER_SIZE:]
 
-    if header[0:4] != SFW_MAGIC:
-        raise ValueError(f"Bad magic: {header[0:4]}")
+    magic = struct.unpack_from("<I", header, 0x00)[0]
+    if magic != SFW_MAGIC:
+        raise ValueError(f"Bad magic: 0x{magic:08X}")
 
-    fw_size = struct.unpack_from("<I", header, 0x0C)[0]
+    fw_size = struct.unpack_from("<I", header, 0x10)[0]
     if fw_size != len(firmware):
         raise ValueError(f"Size mismatch: header says {fw_size}, got {len(firmware)}")
 
-    fw_crc32 = struct.unpack_from("<I", header, 0x10)[0]
+    fw_crc32 = struct.unpack_from("<I", header, 0x14)[0]
     actual_crc = compute_crc32(firmware)
     if fw_crc32 != actual_crc:
         raise ValueError(f"CRC mismatch: header 0x{fw_crc32:08X}, actual 0x{actual_crc:08X}")
