@@ -37,7 +37,7 @@ def main() -> int:
                                    serialization.PrivateFormat.PKCS8,
                                    serialization.NoEncryption()))
 
-    sfw = sign_firmware.sign_firmware(fw, key_path, 0x01, (1, 2, 3))  # target ble-stm32
+    sfw = sign_firmware.sign_firmware(fw, key_path, 0x03, (1, 2, 3))  # target nrf51822
     with open(os.path.join(HERE, "_test.sfw"), "wb") as f:
         f.write(sfw)
     with open(os.path.join(HERE, "_pubkey.bin"), "wb") as f:

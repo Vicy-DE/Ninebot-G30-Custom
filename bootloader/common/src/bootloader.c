@@ -25,14 +25,13 @@
 
 /* ── Bus address (Ninebot) for framed NBU updates ──────────────────────── */
 
-/** Map the SFW target id to its Ninebot bus address (0x20 ESC/0x21 BLE/0x22 BMS). */
+/** Map the SFW target id to its Ninebot bus address.
+ *  Only the dashboard (nRF51822, address 0x21) is a target — the STM32 boards were removed. */
 static uint8_t my_bus_addr(void)
 {
     switch (platform_get_target_id()) {
-    case SFW_TARGET_BMS_STM32: return 0x22;
-    case SFW_TARGET_BLE_STM32: /* fall-through: nRF51 is reached via the BLE STM32 */
-    case SFW_TARGET_NRF51822:  return 0x21;
-    default:                   return 0x21;
+    case SFW_TARGET_NRF51822: return 0x21;   /* dashboard */
+    default:                  return 0x21;
     }
 }
 

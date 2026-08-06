@@ -34,14 +34,14 @@ Three boards on a shared Ninebot UART bus (5A A5 header, **115200 8N1**):
 
 ```
 Phone App ←BLE→ [BLE Dashboard] ←UART→ [ESC → VESC] ←UART→ [BMS Battery]
-                 nRF51822 + STM32F103C8     (replaces stock     STM32F103C8T6
-                 (BLE_*.bin = nRF51!)        STM32F103CBT6)      + BQ76940
+                 nRF51822 ONLY        (replaces stock     STM32F103C8T6
+                 + TM1637 display      STM32F103CBT6)      + BQ76940
 ```
 
 | Board | ID | Main MCU | Flash | Custom FW? |
 |-------|----|----------|-------|-----------|
 | ESC | DRV | **VESC** (replaces stock STM32F103CBT6) | — | No — standard VESC fw + Lisp |
-| BLE | BLE | STM32F103C8T6 **+ nRF51822** | 64 KB + 256 KB | Yes (STM32 app; nRF51 BLE) |
+| BLE | BLE | **nRF51822 alone** (+ TM1637 display driver) — **no STM32** | 256 KB | Yes — nRF51 (Cortex-M0) |
 | BMS | BMS | STM32F103C8T6 + BQ76940 | 64 KB | No — stays stock |
 
 ## Folder map
@@ -57,8 +57,16 @@ Phone App ←BLE→ [BLE Dashboard] ←UART→ [ESC → VESC] ←UART→ [BMS Ba
 Confirmed by re-disassembly — see [`firmware/decompiled/RE_FINDINGS.md`](firmware/decompiled/RE_FINDINGS.md)
 and [`Documentation/VERIFICATION_REPORT.md`](Documentation/VERIFICATION_REPORT.md):
 
-- **`boards/ble-dashboard/firmware/BLE_*.bin` are nRF51822 (Cortex-M0) images, NOT STM32.** There is
-  **no STM32 dashboard dump** in the repo, so the STM32 BLE pinout is reference-derived/unverified.
+- **🚨 The dashboard has NO STM32 — it is nRF51822-only** (binary verdict 2026-07-26, see
+  [`boards/ble-dashboard/MCU_IDENTIFICATION.md`](boards/ble-dashboard/MCU_IDENTIFICATION.md)). The
+  earlier "STM32F103C8T6 + nRF51822" architecture was an **unfounded inference** (someone reasoned
+  "ScooterHacking flashes it with an ST-Link ⇒ it's an STM32"; an ST-Link is a generic SWD probe).
+  The nRF51 does **everything**: BLE, the Ninebot `5A A5` protocol (frame builder @`0x184CC`), and the
+  **TM1637 6-digit display** it bit-bangs on **P0.04/P0.05** (`tm1637_update` @`0x19DAA`, 7-seg font
+  @VMA `0x2046F` — absent from the ESC/BMS dumps). ⇒ **`bootloader/stm32` has no dashboard target**;
+  custom dashboard firmware must target the **nRF51 (Cortex-M0)**.
+- **`boards/ble-dashboard/firmware/BLE_*.bin` are nRF51822 (Cortex-M0) images, NOT STM32** — app base
+  `0x00018000` (after the S110 SoftDevice); `Scooter_G30_SAT` string confirms they are G30 firmware.
 - **`BMS_1.3.4.bin` is encrypted** (XiaoTEA) — decrypt before analyzing. `BMS_1.7.4.5` is plain STM32.
 - `DRV_*` and `BMS_1.7.4.5` are genuine STM32F103 images, app base `0x08001000`.
 - The **`5A A5` framing, addresses, `sum^0xFFFF` checksum, 115200 8N1 are firmware-confirmed** — and
@@ -66,9 +74,11 @@ and [`Documentation/VERIFICATION_REPORT.md`](Documentation/VERIFICATION_REPORT.m
   dashboard transmits SRC `0x21` → ESC `0x20` (`5A A5 05 21 20 65 00 …`). Runtime: `0x65` throttle/brake in,
   `0x64` telemetry out (error=0 clears the comm-fault). See `boards/ble-dashboard/C542_BUS_CAPTURE.md` +
   `docs/C542_PROGRAMMER_SCHEMATIC.md`.
-- **Dumping the stock dashboard bootloader is auth-blocked.** Enter-update = **CMD 0x57**, gated by the
-  STM32 **chip UID** (`~Σ‖~Π` of the UID @`0x1FFFF7E8`); BLE (`G30LD`, NUS+MiIO) gated by the MiIO token.
-  Both are device secrets, not on the wire — needs the token, the UID, or a captured real app-update.
+- **Dumping the stock dashboard bootloader is auth-blocked.** Enter-update = **CMD 0x57**, gated by a
+  **chip-UID password** (`~Σ‖~Π`) — note that formula was RE'd from the **STM32** `DRV`/`BMS` images
+  (UID @`0x1FFFF7E8`); on the **nRF51 dashboard** the ID is `FICR.DEVICEID @0x10000060`, so the
+  dashboard's variant must be re-derived from the nRF51 image. BLE side (`G30LD`) is gated by the
+  **Encryption2** handshake (see `ble-dashboard-auth-encryption2` notes + `tools/ble/`).
 - ESC UART RX is **polled/DMA, not interrupt-driven**; BMS BQ76940 link shows no hardware-I2C1 (likely bit-banged).
 
 ## Conventions
@@ -76,7 +86,9 @@ and [`Documentation/VERIFICATION_REPORT.md`](Documentation/VERIFICATION_REPORT.m
 - **Firmware naming:** `DRV`=ESC, `BLE`=dashboard, `BMS`=battery; file `{TYPE}_{version}.bin[.enc]`.
 - **Addresses:** `0x20` ESC · `0x21` BLE · `0x22` BMS · `0x3E` App · `0x3F` PC.
 - **Endianness:** little-endian. **Checksum:** `XOR 0xFFFF` of the sum of bytes `len..payload`.
-- **Memory:** custom BL 16 KB @ `0x08000000`, app @ `0x08004000`. Stock BL 4 KB @ `0x08000000`, app @ `0x08001000`.
+- **Memory (nRF51 dashboard — the only bootloader target):** S110 SoftDevice `0x00000000`–`0x00017FFF`,
+  app @ `0x00018000`, custom BL 16 KB @ `0x0003C000` (= stock `UICR.BOOTLOADERADDR`). The STM32
+  bootloader (`0x08000000`/`0x08004000`) was **removed 2026-07-26** — no target exists for it.
 - **Toolchain:** `arm-none-eabi-gcc` (Cortex-M3 STM32F103 / Cortex-M0 nRF51822); CMake + Ninja; Python 3.9+.
 - **Variants:** GD32F103 ≡ STM32F103 (pin/binary compatible); nRF51802 ≡ nRF51822.
 - **C code:** Doxygen comment per function; side-effecting functions tagged `@sideeffects` (or
@@ -112,15 +124,17 @@ datasheets, update the board `PINOUT.md`). **To re-verify dumps:** `/verify-firm
 
 ## Deployment (incremental, reversible — full detail in `docs/guides/DEPLOYMENT.md`)
 
+**Rewritten 2026-07-26** — the old phases 1-3 targeted a dashboard STM32 that does not exist.
+
 | Phase | Action | Target | Reversible |
 |------|--------|--------|------------|
-| 0 | Backup + tooling + VESC install | All | Yes |
-| 1 | Custom app via stock IAP (`0x08001000`) | BLE STM32 | Yes (reflash stock) |
-| 2 | Custom bootloader as "app" (`0x08001000`) | BLE STM32 | Yes (reflash stock) |
-| 3 | Custom bootloader @ `0x08000000` (final) | BLE STM32 | SWD only |
-| 4 | nRF51822 BLE firmware (VESC App) | nRF51822 | Via bootloader |
+| 0 | **SWD dump** of the stock nRF51 (`tools/nrf51/nrf51_swd.py dump`) + VESC install | dashboard | — (read-only) |
+| 1 | Custom **app** @ `0x00018000` over SWD, SoftDevice untouched | nRF51822 | Yes — `restore` the dump |
+| 2 | Custom **bootloader** @ `0x0003C000` over SWD | nRF51822 | Yes — `restore` the dump |
+| 3 | Updates via the bootloader (NBU over the bus) or stock OTA | nRF51822 | Via bootloader |
 
-BMS stays stock (out of scope). BLE firmware must support stock Ninebot BMS protocol and optionally Daly BMS.
+Wiring: `docs/WIRING_NRF51_SWD.md` (SWD) · `docs/WIRING_OTA_UPDATE.md` (OTA).
+BMS stays stock (out of scope). Dashboard firmware must support stock Ninebot BMS protocol and optionally Daly BMS.
 
 ## Safety
 

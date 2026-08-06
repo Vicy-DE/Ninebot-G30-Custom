@@ -7,10 +7,12 @@ REAL firmware code, the whole flow the NUCLEO-C542RC will drive:
   1. software-UART bit codec round-trips bytes (test_wire_finder covers framing too)
   2. the C542 software-UART NBU/IAP programmer flashes the real bootloader receiver
      (nbu.c) byte-for-byte                                        [test_c5_prog]
-  3. the relocated bootloader @0x08004000 (16 offset) accepts a signed app, writes it
-     to 0x08008000 (32 offset), and REJECTS tampering; the installer @0x08008000 then
-     writes a bootloader back to 0x08004000 — never touching 0x08000000 [test_iap_chain]
-  4. the on-target artifacts build: relocated BL (BL_BASE=0x08004000) + installer@32
+  3. the PC-side dump/report parser selftest
+
+NOTE (2026-07-26): the old step "relocated STM32 bootloader @0x08004000 -> app @0x08008000
+-> installer writes BL back" was REMOVED along with the STM32 bootloader. The dashboard has
+no STM32 (boards/ble-dashboard/MCU_IDENTIFICATION.md), so that chain had no target. The
+dashboard bootloader is now nRF51-only and is installed over SWD (tools/nrf51/).
 
 Prints GO / NO-GO. GO means the simulated chain is sound and the staged binaries
 match it, so flashing is safe to attempt.
@@ -83,31 +85,18 @@ def main() -> int:
          objs["nbu"], "-o", prog])
     run([prog], label="software-UART NBU programmer -> nbu.c receiver (closed loop)")
 
-    # 3: IAP chain at 16/32 with real signature verify
-    print("\n-- IAP chain @ 16/32 offsets (real ECDSA verify) --")
-    run([PY, os.path.join(SIM, "gen_chain_imgs.py")], cwd=SIM, label="generate signed app + BL image")
-    chain = os.path.join(SIM, "test_iap_chain.exe")
-    run([GPP, "-O2", "-std=c++17", "-pthread", "-I", FW, "-I", CINC,
-         os.path.join(SIM, "test_iap_chain.cpp"), objs["soft_uart"], objs["nbu_prog"],
-         objs["nbu"], objs["fw_header"], objs["ecdsa"], objs["sha256"], objs["crc32"],
-         "-o", chain])
-    run([chain], cwd=SIM, label="BL@16 flashes app->32 (tamper rejected); installer@32 writes BL->16")
-
-    # 4: PC parser + on-target builds
+    # 3: PC parser + the on-target bootloader build
     print("\n-- on-target artifacts build --")
     run([PY, os.path.join(REPO, "tools", "dump_bootloader_c5.py"), "--selftest"],
         label="PC dump/report parser selftest")
     if MAKE:
-        run([MAKE, "TARGET=ble", "BL_BASE=0x08004000"],
-            cwd=os.path.join(REPO, "bootloader", "stm32"),
-            label="relocated bootloader builds (BL_BASE=0x08004000)")
-        run([MAKE], cwd=os.path.join(REPO, "firmware", "migration16"),
-            label="installer@0x08008000 builds (writes BL -> 0x08004000)")
+        run([MAKE], cwd=os.path.join(REPO, "bootloader", "nrf51"),
+            label="nRF51 bootloader builds")
     else:
         print("  NOTE: no make/arm toolchain — skipped on-target builds.")
 
     # cleanup intermediate objects/exes
-    for f in list(objs.values()) + [wf, prog, chain, os.path.join(SIM, "twf.o")]:
+    for f in list(objs.values()) + [wf, prog, os.path.join(SIM, "twf.o")]:
         try: os.remove(f)
         except OSError: pass
 
@@ -117,7 +106,7 @@ def main() -> int:
         print(f" VERDICT: NO-GO — {len(bad)} check(s) failed: {', '.join(bad)}")
         return 1
     print(" VERDICT: GO - software-UART IAP chain verified end-to-end in simulation;")
-    print("          relocated BL + installer build. Safe to flash via IAP.")
+    print("          nRF51 bootloader builds. Safe to proceed.")
     return 0
 
 

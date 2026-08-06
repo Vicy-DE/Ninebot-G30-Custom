@@ -6,17 +6,26 @@ The BLE Dashboard is the front-facing control board of the Ninebot G30 Max. It i
 1. **User Interface**: Handles the display, throttle, brake lever, and button inputs
 2. **Bluetooth Communication**: Provides BLE connectivity for the Ninebot/Segway app and ScooterHacking Utility
 
-The board contains two separate ICs: an STM32 MCU for scooter control logic and an nRF51822 SoC for Bluetooth Low Energy communication.
+> ## 🚨 CORRECTION (2026-07-26) — there is **no STM32** on this board
+>
+> This page previously claimed the board carries "an STM32 MCU **plus** an nRF51822". That was an
+> **unfounded inference and is false.** Binary analysis of the stock dumps proves the **nRF51822 is the
+> only MCU**: it runs BLE, speaks the Ninebot `5A A5` protocol, and drives the **TM1637** display
+> itself (bit-banged on P0.04/P0.05). Full evidence + consequences:
+> **[`MCU_IDENTIFICATION.md`](MCU_IDENTIFICATION.md)**.
+>
+> Everything below marked "STM32" is retained only as a record of the superseded claim — **do not
+> build on it.** The STM32F103 sections describe a chip that is not present on this PCB.
 
 The firmware for this board is designated as **BLE**.
 
 ## Microcontrollers
 
-### STM32F103C8T6 — Main Dashboard MCU
+### ~~STM32F103C8T6 — Main Dashboard MCU~~ ❌ NOT PRESENT (superseded, see correction above)
 
 | Property | Value |
 |---|---|
-| **MCU** | **STM32F103C8T6** |
+| **MCU** | ~~**STM32F103C8T6**~~ — **not on this board** |
 | **Manufacturer** | STMicroelectronics |
 | **Architecture** | ARM Cortex-M3 |
 | **Clock Speed** | 72 MHz |
@@ -26,8 +35,8 @@ The firmware for this board is designated as **BLE**.
 | **Operating Voltage** | 2.0V - 3.6V |
 | **Debug** | SWD (Serial Wire Debug) |
 
-This MCU handles:
-- Display driving (LED segment display)
+~~This MCU handles~~ (in reality the **nRF51822** handles all of this):
+- Display driving (LED segment display — via a **TM1637**, `tm1637_update()` @`0x19DAA`)
 - Throttle ADC reading
 - Brake lever input
 - Power button

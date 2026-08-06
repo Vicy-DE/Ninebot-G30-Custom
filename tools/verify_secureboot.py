@@ -6,11 +6,11 @@
    crc32.c) into a host test and run it: the genuine signed image must be
    ACCEPTED and every tampering (firmware byte, signature byte, wrong key, wrong
    magic, wrong target) REJECTED.
-3. Cross-compile both bootloader targets (STM32 + nRF51) so the on-device build
-   is confirmed too.
+3. Cross-compile the bootloader target (nRF51822 — the only one) so the on-device
+   build is confirmed too.
 
     python tools/verify_secureboot.py
-Exit 0 only if the crypto accepts/rejects correctly AND both targets build.
+Exit 0 only if the crypto accepts/rejects correctly AND the nRF51 target builds.
 """
 from __future__ import annotations
 import os
@@ -66,20 +66,21 @@ def main() -> int:
         print("ERROR: secure-boot crypto verification FAILED.", file=sys.stderr)
         return 1
 
-    # 3) Confirm both on-device bootloader targets build + link.
+    # 3) Confirm the on-device bootloader builds + links.
+    #    nRF51822 is the ONLY target: the dashboard has no STM32, the ESC is a VESC and the BMS
+    #    stays stock (see boards/ble-dashboard/MCU_IDENTIFICATION.md).
     make = next((m for m in ("make", "mingw32-make", "gmake") if shutil.which(m)), None)
     if make:
-        for sub, args in (("stm32", ["TARGET=ble"]), ("nrf51", [])):
-            d = os.path.join(BL, sub)
-            run([make, "clean"], d, stdout=subprocess.DEVNULL)
-            if run([make] + args, d):
-                print(f"ERROR: {sub} bootloader failed to build.", file=sys.stderr)
-                return 1
+        d = os.path.join(BL, "nrf51")
+        run([make, "clean"], d, stdout=subprocess.DEVNULL)
+        if run([make], d):
+            print("ERROR: nrf51 bootloader failed to build.", file=sys.stderr)
+            return 1
     else:
-        print("NOTE: no make/arm toolchain — skipped on-device bootloader builds.")
+        print("NOTE: no make/arm toolchain — skipped on-device bootloader build.")
 
     print("\nVERDICT: secure boot verified - signed-firmware accept + tamper reject,"
-          " and both targets build.")
+          " and the nRF51 bootloader builds.")
     return 0
 
 

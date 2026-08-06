@@ -13,12 +13,10 @@
       "Bash(git commit:*)",
       "Bash(git status:*)",
       "Bash(git diff:*)",
-      "Bash(git log:*)"
+      "Bash(git log:*)",
+      "Bash(git push:*)"
     ],
-    "deny": [
-      "Bash(git push:*)",
-      "Bash(git push)"
-    ],
+    "deny": [],
     "ask": [
       "Bash(python tools/flasher/ninebot_flasher.py:*)",
       "Bash(python tools/flasher/nbu_send.py:*)",

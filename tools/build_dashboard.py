@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Build (and sanity-check) the Ninebot G30 dashboard firmware.
 
-Wraps the `firmware/dashboard` Makefile (arm-none-eabi toolchain) and, optionally,
+Wraps the `firmware/dashboard-nrf51` Makefile (arm-none-eabi, Cortex-M0) and, optionally,
 the host test suite in `firmware/decompiled`. After a target build it validates
 the produced `.bin` the same way the bootloader does (`platform_is_app_valid`):
 the initial stack pointer must point into SRAM and the reset vector into the app
@@ -24,12 +24,15 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
-FW_DIR = os.path.join(REPO, "firmware", "dashboard")
+FW_DIR = os.path.join(REPO, "firmware", "dashboard-nrf51")
 DECOMP_DIR = os.path.join(REPO, "firmware", "decompiled")
 
-APP_BASE = 0x08001000
-APP_END = 0x08001000 + 60 * 1024      # 60 KB app region (Phase 1)
-SRAM_LO, SRAM_HI = 0x20000000, 0x20005000
+# nRF51822 app slot: above the S110 SoftDevice, below the bootloader at 0x3C000.
+# (The old 0x08001000/60 KB values were for a dashboard STM32 that does not exist —
+#  see boards/ble-dashboard/MCU_IDENTIFICATION.md.)
+APP_BASE = 0x00018000
+APP_END = 0x0003C000                  # bootloader slot starts here
+SRAM_LO, SRAM_HI = 0x20002000, 0x20004000   # app RAM, above the SoftDevice
 
 
 def _find_make() -> str | None:
@@ -88,11 +91,11 @@ def main(argv=None) -> int:
         print("ERROR: firmware build failed.", file=sys.stderr)
         return 1
 
-    binpath = os.path.join(FW_DIR, "build", "dashboard_app.bin")
+    binpath = os.path.join(FW_DIR, "build", "dashboard.bin")
     print(f"\nbuilt: {os.path.relpath(binpath, REPO)} ({os.path.getsize(binpath)} bytes)")
     if not validate_bin(binpath):
         return 1
-    print("  load address: 0x%08X (Phase 1 - behind the stock 4 KB bootloader)" % APP_BASE)
+    print("  load address: 0x%08X (nRF51 app slot, above the S110 SoftDevice)" % APP_BASE)
 
     if args.host_tests:
         bdir = os.path.join(DECOMP_DIR, "build_host")
@@ -110,7 +113,8 @@ def main(argv=None) -> int:
     print("\nOK. Flash with the no-solder serial-IAP path "
           "(docs/DASHBOARD_NO_SOLDER_FLASH.md):")
     print("  python tools/flasher/ninebot_flasher.py --port COMx --target BLE "
-          "--addr 0x21 --image firmware/dashboard/build/dashboard_app.bin --base 0x08001000")
+          "python tools/nrf51/nrf51_swd.py flash firmware/dashboard-nrf51/build/dashboard.bin "
+          "--address 0x18000")
     return 0
 
 

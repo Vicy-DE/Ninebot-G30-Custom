@@ -56,6 +56,14 @@ SECTIONS
     {
         . = ALIGN(4);
         _sdata = .;
+        /* RAM-resident code MUST come first: the bootloader self-update erases the flash it is
+         * executing from, so that routine has to run from SRAM. It is loaded from flash and
+         * copied here by the same startup loop that initialises .data.
+         * (nRF51 RM ch.6: the CPU is halted during NVMC write/erase, so flash-resident code is
+         * fine for programming OTHER pages — only self-erase needs this.) */
+        *(.ramfunc)
+        *(.ramfunc*)
+        . = ALIGN(4);
         *(.data)
         *(.data*)
         . = ALIGN(4);

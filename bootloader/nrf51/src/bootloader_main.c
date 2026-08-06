@@ -104,6 +104,49 @@ static int is_app_valid(void)
     return 1;
 }
 
+/* ── Boot-time signature verification ──────────────────────────────────────
+ *
+ * The structural check above only proves the vector table looks sane. Real secure boot must
+ * re-verify the signature on EVERY boot, because flash can change after an update completes
+ * (SWD write, glitched/partial update, bit rot). We can do that because the signed header of
+ * the installed image is persisted in the settings page.
+ *
+ * @return 1 = app verified (or unverifiable but policy allows booting), 0 = must not boot
+ */
+static int is_app_authentic(void)
+{
+    const sfw_header_t *h = (const sfw_header_t *)nrf_flash_get_boot_record();
+
+    if (h == 0) {
+        /* No record: the image did not come from this bootloader (typically an SWD flash). */
+#if SECURE_BOOT_REQUIRE_RECORD
+        nrf_uart_puts("[BOOT-NRF] No boot record - refusing to boot unverified image\r\n");
+        return 0;
+#else
+        nrf_uart_puts("[BOOT-NRF] WARNING: no boot record, image is UNVERIFIED\r\n");
+        return 1;
+#endif
+    }
+
+    if (sfw_validate_header(h, MY_TARGET_ID, SFW_MAX_FW_SIZE_NRF51) != SFW_OK) {
+        nrf_uart_puts("[BOOT-NRF] Boot record header invalid\r\n");
+        return 0;
+    }
+    wdt_feed();
+    if (sfw_check_crc((const uint8_t *)APP_START_ADDR, h->fw_size, h->fw_crc32) != SFW_OK) {
+        nrf_uart_puts("[BOOT-NRF] App CRC mismatch - flash altered\r\n");
+        return 0;
+    }
+    wdt_feed();
+    if (sfw_verify_signature(h, (const uint8_t *)APP_START_ADDR,
+                             h->fw_size, ecdsa_pubkey) != SFW_OK) {
+        nrf_uart_puts("[BOOT-NRF] App SIGNATURE INVALID - refusing to boot\r\n");
+        return 0;
+    }
+    wdt_feed();
+    return 1;
+}
+
 /* ── NBU write callback ────────────────────────────────────────────────── */
 
 static int nbu_block_handler(const uint8_t *data, uint32_t offset,
@@ -139,8 +182,9 @@ static int nbu_block_handler(const uint8_t *data, uint32_t offset,
         }
 
         if (fw_len > 0 && fw_start_in_block < length) {
-            if (nrf_flash_write(g_flash_write_addr,
-                                data + fw_start_in_block, fw_len) != 0) {
+            /* Stream it: the NVMC only accepts word-aligned writes (a byte/half-word write
+             * hard-faults, nRF51 RM 6.1.1) and NBU blocks are arbitrary lengths. */
+            if (nrf_flash_stream_write(data + fw_start_in_block, fw_len) != 0) {
                 g_write_error = 1;
                 return -1;
             }
@@ -181,6 +225,7 @@ static void enter_update_mode(void)
     uint32_t total_received = 0;
     sfw_result_t result;
     nbu_result_t xresult;
+    int is_bootloader_image;
 
     nrf_uart_puts("\r\n[BOOT-NRF] Secure Bootloader v1.0\r\n");
     nrf_uart_puts("[BOOT-NRF] Target: nRF51822\r\n");
@@ -189,6 +234,7 @@ static void enter_update_mode(void)
     /* Initialize receive state */
     memset(&g_sfw_header, 0, sizeof(g_sfw_header));
     g_flash_write_addr = APP_START_ADDR;
+    nrf_flash_stream_begin(APP_START_ADDR);
     g_header_complete = 0;
     g_write_error = 0;
 
@@ -219,12 +265,34 @@ static void enter_update_mode(void)
     nrf_uart_puts("[BOOT-NRF] Transfer complete. Validating...\r\n");
 
     /* Validate header */
-    result = sfw_validate_header(&g_sfw_header, MY_TARGET_ID,
-                                  SFW_MAX_FW_SIZE_NRF51);
+    /* Accept either an application image or a BOOTLOADER image (self-update). Both are staged
+     * in the app region and must pass the identical signature check before anything is used. */
+    is_bootloader_image = (g_sfw_header.target_id == SFW_TARGET_NRF51822_BL);
+
+    result = sfw_validate_header(&g_sfw_header,
+                                 is_bootloader_image ? SFW_TARGET_NRF51822_BL : MY_TARGET_ID,
+                                 SFW_MAX_FW_SIZE_NRF51);
     if (result != SFW_OK) {
         nrf_uart_puts("[BOOT-NRF] ERROR: Header validation failed\r\n");
         nrf_flash_erase_app_region();
         return;
+    }
+    if (is_bootloader_image && g_sfw_header.fw_size > BOOTLOADER_SIZE) {
+        nrf_uart_puts("[BOOT-NRF] ERROR: bootloader image too large\r\n");
+        nrf_flash_erase_app_region();
+        return;
+    }
+
+    /* Anti-rollback: refuse an image older than the one already installed, so a signed but
+     * vulnerable old release cannot be pushed back on. SFW_FLAG_FORCE_UPDATE overrides. */
+    {
+        const uint32_t installed = nrf_flash_get_installed_version();
+        if (installed != 0U && g_sfw_header.fw_version < installed &&
+            (g_sfw_header.flags & SFW_FLAG_FORCE_UPDATE) == 0U) {
+            nrf_uart_puts("[BOOT-NRF] ERROR: rollback rejected (older version)\r\n");
+            nrf_flash_erase_app_region();
+            return;
+        }
     }
 
     nrf_uart_puts("[BOOT-NRF] Header OK. Verifying CRC...\r\n");
@@ -252,7 +320,32 @@ static void enter_update_mode(void)
         return;
     }
 
-    nrf_uart_puts("[BOOT-NRF] Signature VALID. Update complete.\r\n");
+    nrf_uart_puts("[BOOT-NRF] Signature VALID.\r\n");
+
+    /* ── Bootloader self-update ──────────────────────────────────────────────
+     * The staged image is a new BOOTLOADER, verified byte-for-byte above. Installing it means
+     * erasing the very pages we are executing from, which no flash-resident code can survive
+     * (nRF51 RM ch.6 — the CPU resumes into erased flash). nrf_flash_install_bootloader()
+     * therefore runs from SRAM and resets the chip; it does not return. */
+    if (is_bootloader_image) {
+        nrf_uart_puts("[BOOT-NRF] Installing new BOOTLOADER from RAM...\r\n");
+        {   /* let the UART drain first — the reset is immediate */
+            uint32_t t = get_tick();
+            while ((get_tick() - t) < 100) { wdt_feed(); }
+        }
+        (void)nrf_flash_install_bootloader(APP_START_ADDR, g_sfw_header.fw_size);
+        nrf_uart_puts("[BOOT-NRF] ERROR: bootloader install rejected\r\n");
+        return;
+    }
+
+    nrf_uart_puts("[BOOT-NRF] Update complete.\r\n");
+
+    /* Persist the signed header so every later boot can re-verify this image, and record the
+     * version for anti-rollback. This also leaves the update flag cleared. */
+    if (nrf_flash_save_boot_record(&g_sfw_header, sizeof(g_sfw_header),
+                                   g_sfw_header.fw_version) != 0) {
+        nrf_uart_puts("[BOOT-NRF] WARNING: could not store boot record\r\n");
+    }
 
     /* Clear update triggers */
     nrf_flash_clear_update_flag();
@@ -327,8 +420,15 @@ int main(void)
         enter_update = 1;
     }
 
-    /* Trigger 3: No valid application */
+    /* Trigger 3: No structurally valid application */
     if (!is_app_valid()) {
+        enter_update = 1;
+    }
+
+    /* Trigger 4: SECURE BOOT — the installed image must still verify against its stored,
+     * signed header on every boot. Catches post-update tampering, a glitched/partial write,
+     * or flash corruption; without this, secure boot would only apply at update time. */
+    if (!enter_update && !is_app_authentic()) {
         enter_update = 1;
     }
 

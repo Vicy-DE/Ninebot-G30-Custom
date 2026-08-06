@@ -80,6 +80,11 @@ int nrf_flash_write(uint32_t addr, const uint8_t *data, uint32_t len)
     if (addr >= BOOTLOADER_START) {
         return -1;
     }
+    /* nRF51 RM 6.1.1: "Only word aligned writes are allowed. Byte or half word aligned writes
+     * will result in a hard fault." Fail loudly instead of faulting. */
+    if ((addr & 3U) != 0U) {
+        return -1;
+    }
 
     nvmc_wait_ready();
 
@@ -140,17 +145,148 @@ void nrf_flash_set_update_flag(void)
 
 void nrf_flash_clear_update_flag(void)
 {
+    /* Clear the flag IN PLACE (1->0 needs no erase) so the boot record on the same page
+     * survives. Erasing here would destroy the stored signature and make the next boot
+     * unverifiable. */
+    volatile uint32_t *flag = (volatile uint32_t *)(BL_SETTINGS_ADDR + BL_FLAG_OFFSET);
+    if (*flag == 0U) {
+        return;                                  /* already consumed */
+    }
+    nvmc_wait_ready();
+    NRF_NVMC_CONFIG = NVMC_CONFIG_WEN;
+    nvmc_wait_ready();
+    *flag = 0U;
+    nvmc_wait_ready();
+    NRF_NVMC_CONFIG = NVMC_CONFIG_REN;
+    nvmc_wait_ready();
+}
+
+int nrf_flash_save_boot_record(const void *hdr, uint32_t hdr_len, uint32_t fw_version)
+{
+    const uint32_t *src = (const uint32_t *)hdr;
+    uint32_t i;
+
+    if (hdr_len == 0U || (hdr_len % 4U) != 0U ||
+        (BL_RECORD_HEADER_OFFSET + hdr_len) > BL_SETTINGS_SIZE) {
+        return -1;
+    }
+
+    /* Erase the settings page, then lay down magic + version + the signed header. The update
+     * flag is left erased (0xFFFFFFFF != UPDATE_FLAG_MAGIC), i.e. "no update requested". */
     nvmc_wait_ready();
     NRF_NVMC_CONFIG = NVMC_CONFIG_EEN;
     nvmc_wait_ready();
     NRF_NVMC_ERASEPAGE = BL_SETTINGS_ADDR;
     nvmc_wait_ready();
+
+    NRF_NVMC_CONFIG = NVMC_CONFIG_WEN;
+    nvmc_wait_ready();
+    *(volatile uint32_t *)(BL_SETTINGS_ADDR + BL_RECORD_MAGIC_OFFSET) = BL_BOOT_RECORD_MAGIC;
+    nvmc_wait_ready();
+    *(volatile uint32_t *)(BL_SETTINGS_ADDR + BL_RECORD_VERSION_OFFSET) = fw_version;
+    nvmc_wait_ready();
+    for (i = 0; i < hdr_len / 4U; i++) {
+        *(volatile uint32_t *)(BL_SETTINGS_ADDR + BL_RECORD_HEADER_OFFSET + i * 4U) = src[i];
+        nvmc_wait_ready();
+    }
     NRF_NVMC_CONFIG = NVMC_CONFIG_REN;
     nvmc_wait_ready();
+
+    return 0;
+}
+
+const void *nrf_flash_get_boot_record(void)
+{
+    if (*(volatile uint32_t *)(BL_SETTINGS_ADDR + BL_RECORD_MAGIC_OFFSET) != BL_BOOT_RECORD_MAGIC) {
+        return 0;
+    }
+    return (const void *)(BL_SETTINGS_ADDR + BL_RECORD_HEADER_OFFSET);
+}
+
+uint32_t nrf_flash_get_installed_version(void)
+{
+    if (*(volatile uint32_t *)(BL_SETTINGS_ADDR + BL_RECORD_MAGIC_OFFSET) != BL_BOOT_RECORD_MAGIC) {
+        return 0U;                               /* nothing installed by us yet */
+    }
+    return *(volatile uint32_t *)(BL_SETTINGS_ADDR + BL_RECORD_VERSION_OFFSET);
 }
 
 int nrf_flash_is_update_requested(void)
 {
     uint32_t flag = *(volatile uint32_t *)BL_SETTINGS_ADDR;
     return (flag == UPDATE_FLAG_MAGIC) ? 1 : 0;
+}
+
+/* ── Word-aligned streaming writer ─────────────────────────────────────────
+ *
+ * The NBU transfer delivers arbitrary-length blocks, but the NVMC only accepts word-aligned
+ * 32-bit writes (a byte/half-word write hard-faults, nRF51 RM 6.1.1). This streamer buffers
+ * the 0-3 leftover bytes of a block and emits them together with the start of the next one,
+ * so the flash address always stays word aligned and no byte is written twice.
+ */
+
+static uint32_t s_stream_addr;
+static uint8_t  s_stream_carry[4];
+static uint32_t s_stream_carry_len;
+
+void nrf_flash_stream_begin(uint32_t addr)
+{
+    s_stream_addr = addr;
+    s_stream_carry_len = 0U;
+}
+
+int nrf_flash_stream_write(const uint8_t *data, uint32_t len)
+{
+    uint32_t i = 0U;
+
+    /* Top up a partial word from the previous block first. */
+    while (s_stream_carry_len > 0U && s_stream_carry_len < 4U && i < len) {
+        s_stream_carry[s_stream_carry_len++] = data[i++];
+    }
+    if (s_stream_carry_len == 4U) {
+        if (nrf_flash_write(s_stream_addr, s_stream_carry, 4U) != 0) {
+            return -1;
+        }
+        s_stream_addr += 4U;
+        s_stream_carry_len = 0U;
+    }
+
+    /* Whole words straight through. */
+    {
+        const uint32_t whole = ((len - i) / 4U) * 4U;
+        if (whole > 0U) {
+            if (nrf_flash_write(s_stream_addr, data + i, whole) != 0) {
+                return -1;
+            }
+            s_stream_addr += whole;
+            i += whole;
+        }
+    }
+
+    /* Keep the tail for the next call. */
+    while (i < len) {
+        s_stream_carry[s_stream_carry_len++] = data[i++];
+    }
+    return 0;
+}
+
+int nrf_flash_stream_finish(void)
+{
+    if (s_stream_carry_len == 0U) {
+        return 0;
+    }
+    while (s_stream_carry_len < 4U) {
+        s_stream_carry[s_stream_carry_len++] = 0xFFU;   /* pad; erased flash is 0xFF */
+    }
+    if (nrf_flash_write(s_stream_addr, s_stream_carry, 4U) != 0) {
+        return -1;
+    }
+    s_stream_addr += 4U;
+    s_stream_carry_len = 0U;
+    return 0;
+}
+
+uint32_t nrf_flash_stream_addr(void)
+{
+    return s_stream_addr;
 }

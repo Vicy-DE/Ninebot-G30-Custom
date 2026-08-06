@@ -50,9 +50,18 @@ This matches the repo's verified protocol (115200 8N1, `5A A5`, `Σ^0xFFFF` chec
 
 ## B. SWD pads / test points per MCU
 
-### B1. STM32F103C8T6 — dashboard main MCU  **[CONFIRMED]**
+### B1. ~~STM32F103C8T6 — dashboard main MCU~~ ❌ **RETRACTED — the tag was wrong**
+
+> **The `[CONFIRMED]` below was never confirmed.** Its entire basis is the inference in the next
+> sentence: *"ST-Link + STM32 tooling → therefore STM32 pads."* An **ST-Link V2 is a generic SWD probe**
+> and is exactly what the community uses to flash **nRF51** chips (ScooterHacking ReFlasher does this),
+> so the inference is invalid. Binary analysis of the stock dumps shows the dashboard is
+> **nRF51822-only** (it drives the display via a TM1637 and speaks `5A A5` itself) —
+> see [`MCU_IDENTIFICATION.md`](MCU_IDENTIFICATION.md). **The SWD pads described below are the
+> nRF51822's**, not an STM32's.
+
 The documented dashboard-flash procedure (ScooterHacking "Full Tutorial" Part 1) uses an **ST-Link V2
-+ STM32 ST-Link Utility** (STM32 tooling → these are the STM32's pads):
++ STM32 ST-Link Utility** (STM32 tooling → ~~these are the STM32's pads~~ **invalid inference**):
 - **3 pads labeled GND / SWCLK / SWDIO**, grouped together "on the right" of the board.
 - A separate **+5 V pad**, exposed after **removing capacitor C2** on the front (ST-Link 5 V powers the
   board). Alternative: feed 5 V to the **red dash-plug wire** and GND to the third pad by the data lines.
@@ -85,8 +94,10 @@ PB6/PB7 to the ESC and USART1 PA9/PA10 to the nRF51) are **reference-derived**, 
   in the VESC build the **VESC reads throttle/brake on its own ADC** anyway (the lisp does
   `app-adc-override`), so `dash_bridge.buildThrottleFrame()` (0x65) is only used if a given dashboard
   revision *does* read them. Verify on your unit.
-- **Display + status LEDs:** driven by the dashboard STM32; **internal pin connections undocumented** —
-  needs a physical trace if you intend to drive the stock display from custom firmware.
+- **Display + status LEDs:** ~~driven by the dashboard STM32; internal pin connections undocumented~~
+  → **SOLVED (2026-07-26): driven by the nRF51822 through a TM1637** on **P0.04 / P0.05** (bit-banged
+  2-wire, 6 grids, `0x88|brightness`). Font table + `tm1637_update()` recovered from the stock image —
+  no physical trace needed. See [`MCU_IDENTIFICATION.md`](MCU_IDENTIFICATION.md).
 
 ---
 

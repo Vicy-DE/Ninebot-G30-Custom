@@ -56,17 +56,20 @@
 /* ── UART configuration ───────────────────────────────────────────────── */
 
 /**
- * nRF51822 UART0 connects to BLE STM32 on the dashboard PCB.
- * Pin assignments from nRF51822 analysis:
- *   TX → STM32 USART1_RX (PA10)
- *   RX → STM32 USART1_TX (PA9)
+ * nRF51822 UART0 drives the **Ninebot bus** directly — there is no STM32 on this board
+ * (see boards/ble-dashboard/MCU_IDENTIFICATION.md). The pins below are recovered from the stock
+ * firmware's uart_init() @0x0001FDB4, which is called two ways to turn the one-wire bus around:
  *
- * Actual GPIO pins depend on the PCB layout. From firmware analysis,
- * the nRF51822 GPIO config for UART is set at runtime.
- * Common nRF51822 UART pins on Ninebot BLE board:
+ *   mode A: PSELTXD = P0.15, PSELRXD = P0.20
+ *   mode B: PSELTXD = P0.20, PSELRXD = P0.15
+ *
+ * The NBU update transport is framed request→ACK turn-taking, so the bootloader swaps direction
+ * around every transmission exactly like the stock application does.
  */
-#define UART_TX_PIN             9    /**< P0.09 → STM32 PA10 (USART1_RX) */
-#define UART_RX_PIN             11   /**< P0.11 → STM32 PA9  (USART1_TX) */
+#define UART_PIN_BUS_A          15   /**< P0.15 — Ninebot bus line A (firmware-confirmed) */
+#define UART_PIN_BUS_B          20   /**< P0.20 — Ninebot bus line B (firmware-confirmed) */
+#define UART_TX_PIN             UART_PIN_BUS_A  /**< default direction: transmit on A */
+#define UART_RX_PIN             UART_PIN_BUS_B
 #define UART_BAUD_RATE          115200U
 
 /* ── Update trigger ────────────────────────────────────────────────────── */
@@ -79,6 +82,35 @@
 
 /** Update flag in bootloader settings page. */
 #define UPDATE_FLAG_MAGIC       0xDEAD1234U
+
+/* ── Boot record (persisted .sfw header) ───────────────────────────────────
+ *
+ * The settings page keeps the signed header of the image that is currently installed, so the
+ * bootloader can verify the application on EVERY boot — not just at update time. Layout:
+ *
+ *   +0x000  update flag      (UPDATE_FLAG_MAGIC when an update is requested, 0 once consumed)
+ *   +0x004  boot record magic
+ *   +0x008  installed firmware version (for anti-rollback)
+ *   +0x100  sfw_header_t (256 B) — magic, version, sizes, SHA-256, ECDSA signature
+ *
+ * Flash bits only go 1->0 without an erase, so the flag word can be cleared in place while the
+ * boot record survives.
+ */
+#define BL_BOOT_RECORD_MAGIC    0x5242314EU               /**< "NB1R" */
+#define BL_FLAG_OFFSET          0U
+#define BL_RECORD_MAGIC_OFFSET  4U
+#define BL_RECORD_VERSION_OFFSET 8U
+#define BL_RECORD_HEADER_OFFSET 256U
+
+/**
+ * Boot policy when NO boot record exists (e.g. an image flashed over SWD during development).
+ *   1 = fail closed: refuse to boot an image we cannot verify, enter update mode instead
+ *   0 = fail open  : fall back to the structural vector-table check and warn over UART
+ * A record that EXISTS is always fully verified regardless of this setting.
+ */
+#ifndef SECURE_BOOT_REQUIRE_RECORD
+#define SECURE_BOOT_REQUIRE_RECORD 0
+#endif
 
 /* ── SFW target ────────────────────────────────────────────────────────── */
 

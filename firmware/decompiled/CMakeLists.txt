@@ -100,18 +100,37 @@ target_compile_options(firmware_tests PRIVATE
     $<$<CXX_COMPILER_ID:MSVC>:/W4 /O2>
 )
 
-# ─── Dashboard chip simulator (no-brick verification) ────────────────
-# Runs the real DashApp logic (firmware/dashboard) against a SimChip model.
+# ─── Dashboard host tests (no-brick verification) ────────────────────
+# The STM32 dashboard simulator was removed with firmware/dashboard: that firmware targeted a
+# dashboard STM32 that does not exist (boards/ble-dashboard/MCU_IDENTIFICATION.md). These two
+# targets replace it and are stronger — they check the real nRF51 dashboard code against ground
+# truth: the frame captured off the live bus, and the TM1637 sequence + font lifted from the
+# stock image.
+set(DASH_NRF51 ${CMAKE_CURRENT_SOURCE_DIR}/../dashboard-nrf51)
+
 add_executable(dashboard_sim
-    ${CMAKE_CURRENT_SOURCE_DIR}/../dashboard/sim/sim_main.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../dashboard/sim/sim_dash_hal.cpp
+    ${DASH_NRF51}/sim/test_dashboard.cpp
+    ${DASH_NRF51}/src/tm1637.cpp
+    ${DASH_NRF51}/src/nb_protocol.cpp
+    ${DASH_NRF51}/src/dashboard.cpp
 )
 target_include_directories(dashboard_sim PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/../dashboard/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/../dashboard/sim
+    ${DASH_NRF51}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/common/include
     ${CMAKE_CURRENT_SOURCE_DIR}/ble/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/nrf51822/include
+)
+
+# Ported shared modules (odometer / watchdog / power keeper) on an nRF51 flash model.
+add_executable(dashboard_persist_sim ${DASH_NRF51}/sim/test_persist.cpp)
+target_include_directories(dashboard_persist_sim PRIVATE
+    ${DASH_NRF51}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/common/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/ble/include
+)
+target_compile_options(dashboard_persist_sim PRIVATE
+    $<$<CXX_COMPILER_ID:GNU>:-Wall -Wextra -O2>
+    $<$<CXX_COMPILER_ID:Clang>:-Wall -Wextra -O2>
+    $<$<CXX_COMPILER_ID:MSVC>:/W4 /O2>
 )
 target_compile_options(dashboard_sim PRIVATE
     $<$<CXX_COMPILER_ID:GNU>:-Wall -Wextra -O2>
@@ -133,7 +152,6 @@ target_compile_options(ble_sim PRIVATE
 # ─── CTest integration ───────────────────────────────────────────────
 enable_testing()
 add_test(NAME all_firmware_tests COMMAND firmware_tests)
-add_test(NAME dashboard_sim
-         COMMAND dashboard_sim
-                 ${CMAKE_CURRENT_SOURCE_DIR}/../dashboard/build/dashboard_app.bin)
+add_test(NAME dashboard_sim COMMAND dashboard_sim)
+add_test(NAME dashboard_persist_sim COMMAND dashboard_persist_sim)
 add_test(NAME ble_sim COMMAND ble_sim)

@@ -1,12 +1,31 @@
-# Ninebot G30 Max — Secure Custom Bootloader Concept
+# Ninebot G30 Max — Secure Custom Bootloader
+
+> **⚠️ Scope changed 2026-07-26 — the STM32 bootloader was REMOVED.**
+> The dashboard has **no STM32**; it is nRF51822-only
+> ([`MCU_IDENTIFICATION.md`](../boards/ble-dashboard/MCU_IDENTIFICATION.md)). With the ESC replaced by
+> a VESC and the BMS staying stock, the STM32 bootloader had **no target left**, so `bootloader/stm32/`
+> and its install chain (`firmware/migration*`, `firmware/bootloader-dumper`,
+> `tools/verify_reloc_build.py`) were deleted. Everything below now refers to the **nRF51822 only**.
+> Build with `-DTARGET_BOARD=nrf51`, or `make` in `bootloader/nrf51/`.
 
 ## Hardware Configuration
 
 | Role | Board | Hardware | Bootloader? |
 |------|-------|----------|-------------|
 | Motor Controller | ESC | **VESC** (3rd party) | No — uses VESC firmware |
-| Dashboard | BLE | **Original** (STM32F103C8T6 + nRF51822) | **Yes** — both MCUs |
-| Battery | BMS | **Original** (STM32F103C8T6 + BQ76940) | **Yes** — STM32 |
+| Dashboard | BLE | **Original — nRF51822 only** (+ TM1637 display) | **Yes** — the one target |
+| Battery | BMS | **Original** (STM32F103C8T6 + BQ76940) | No — stays stock, out of scope |
+
+## Memory map (nRF51822-QFAA, 256 KB)
+
+| Region | Address | Size | Contents |
+|---|---|---|---|
+| SoftDevice | `0x00000000` | 96 KB | Nordic S110 (`UICR.CLENR0 = 0x18000`) |
+| Application | `0x00018000` | 144 KB | dashboard app (`firmware/dashboard-nrf51/`) |
+| **Bootloader** | **`0x0003C000`** | 16 KB | this project (= stock `UICR.BOOTLOADERADDR`) |
+
+Bus: 115200 8N1 on **P0.15 / P0.20**, half-duplex by swapping `PSELTXD`/`PSELRXD` — recovered from the
+stock `uart_init()` @`0x0001FDB4`.
 
 ## Architecture Overview
 

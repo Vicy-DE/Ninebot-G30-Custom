@@ -32,6 +32,7 @@ BUILD_DIR   = build
 C_SOURCES = \
     $(SRC_DIR)/bootloader_main.c \
     $(SRC_DIR)/nrf51_flash.c \
+    $(SRC_DIR)/nrf51_selfupdate.c \
     $(SRC_DIR)/nrf51_uart.c \
     $(COMMON_DIR)/src/sha256.c \
     $(COMMON_DIR)/src/ecdsa.c \

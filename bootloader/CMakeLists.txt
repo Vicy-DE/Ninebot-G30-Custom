@@ -5,18 +5,10 @@
 #  This CMake project configures cross-compilation for ARM Cortex-M targets.
 #  It is provided as an alternative to the per-target Makefiles.
 #
+#  The ONLY target is the dashboard's nRF51822 — the board has no STM32
+#  (see boards/ble-dashboard/MCU_IDENTIFICATION.md). The STM32 targets were removed 2026-07-26.
+#
 #  Usage:
-#    # BLE Dashboard STM32 bootloader
-#    cmake -B build/ble -DTARGET_BOARD=ble \
-#          -DCMAKE_TOOLCHAIN_FILE=cmake/arm-cortex-m3.cmake
-#    cmake --build build/ble
-#
-#    # BMS STM32 bootloader
-#    cmake -B build/bms -DTARGET_BOARD=bms \
-#          -DCMAKE_TOOLCHAIN_FILE=cmake/arm-cortex-m3.cmake
-#    cmake --build build/bms
-#
-#    # nRF51822 bootloader
 #    cmake -B build/nrf51 -DTARGET_BOARD=nrf51 \
 #          -DCMAKE_TOOLCHAIN_FILE=cmake/arm-cortex-m0.cmake
 #    cmake --build build/nrf51
@@ -34,10 +26,8 @@ project(ninebot_g30_bootloader
 # ── Target board selection ──────────────────────────────────────────────────
 if(NOT DEFINED TARGET_BOARD)
     message(FATAL_ERROR
-        "TARGET_BOARD not set. Use -DTARGET_BOARD=ble|bms|nrf51\n"
-        "  ble   = BLE Dashboard STM32F103C8T6\n"
-        "  bms   = BMS STM32F103C8T6\n"
-        "  nrf51 = nRF51822-QFAA"
+        "TARGET_BOARD not set. Use -DTARGET_BOARD=nrf51\n"
+        "  nrf51 = nRF51822-QFAA — the dashboard's only MCU (no STM32 on this board)"
     )
 endif()
 
@@ -59,27 +49,15 @@ set(COMMON_INCLUDE ${COMMON_DIR}/include)
 # ── Per-target configuration ────────────────────────────────────────────────
 
 if(TARGET_BOARD STREQUAL "ble" OR TARGET_BOARD STREQUAL "bms")
-    # ── STM32F103C8T6 bootloader (BLE or BMS) ──────────────────────────
-    set(STM32_DIR ${CMAKE_CURRENT_SOURCE_DIR}/stm32)
-
-    set(TARGET_SOURCES
-        ${STM32_DIR}/src/platform_stm32.c
-        ${STM32_DIR}/src/stm32_flash.c
-        ${STM32_DIR}/src/stm32_uart.c
-        ${STM32_DIR}/src/startup.s
-    )
-    set(TARGET_INCLUDE ${STM32_DIR}/include)
-    set(LINKER_SCRIPT ${STM32_DIR}/stm32f103c8_bootloader.ld)
-
-    set(MCU_FLAGS -mcpu=cortex-m3 -mthumb)
-
-    if(TARGET_BOARD STREQUAL "ble")
-        set(TARGET_DEFINE "TARGET_BOARD=1")  # BOARD_BLE_STM32
-        set(OUTPUT_NAME "ble_bootloader")
-    else()
-        set(TARGET_DEFINE "TARGET_BOARD=2")  # BOARD_BMS_STM32
-        set(OUTPUT_NAME "bms_bootloader")
-    endif()
+    # The STM32 bootloader was REMOVED (2026-07-26). It had no target left in this project:
+    #   * the dashboard has no STM32 at all — it is nRF51822-only
+    #     (see boards/ble-dashboard/MCU_IDENTIFICATION.md)
+    #   * the stock ESC is replaced by a VESC, which runs its own firmware
+    #   * the BMS stays stock and is explicitly out of scope ("do not flash the BMS")
+    message(FATAL_ERROR
+        "TARGET_BOARD=${TARGET_BOARD} no longer exists.\n"
+        "  The dashboard is nRF51822-only (no STM32) and the BMS/ESC are out of scope.\n"
+        "  Build the dashboard bootloader with: -DTARGET_BOARD=nrf51")
 
 elseif(TARGET_BOARD STREQUAL "nrf51")
     # ── nRF51822-QFAA bootloader ────────────────────────────────────────

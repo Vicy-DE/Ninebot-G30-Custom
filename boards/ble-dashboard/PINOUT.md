@@ -1,5 +1,12 @@
-# BLE Dashboard — STM32F103C8T6 + nRF51822 Pinout Sheet
+# BLE Dashboard — nRF51822 Pinout Sheet  *(no STM32 on this board)*
 
+> ## 🚨 **VERDICT (2026-07-26): the "MCU 1: STM32F103C8T6" section below describes a chip that is NOT ON THIS BOARD.**
+> The dashboard is **nRF51822-only**. The nRF51 runs BLE, speaks the Ninebot `5A A5` protocol, *and*
+> drives the display through a **TM1637** it bit-bangs on **P0.04 (DIO/CLK) / P0.05**. Proven from the
+> stock dumps — see **[`MCU_IDENTIFICATION.md`](MCU_IDENTIFICATION.md)**. Treat every "STM32" row on
+> this page as **void**; the outward bus facts (115200 8N1, `5A A5`, SRC `0x21`) remain true, they are
+> simply produced by the **nRF51**, not by an STM32.
+>
 > ⚠️ **Provenance correction (2026-06-02).** The `BLE_1.1.0.bin` / `BLE_1.1.7.bin` dumps in
 > `firmware/` are **nRF51822 (Cortex-M0)** application images (reset vector `0x00018154`, Nordic
 > UART0 only, S110 SoftDevice, Xiaomi MiIO strings) — **not** STM32 dashboard firmware. There is
@@ -17,11 +24,12 @@
 > are now hardware-fact). Tap wiring + signal flow: [`docs/C542_PROGRAMMER_SCHEMATIC.md`](../../docs/C542_PROGRAMMER_SCHEMATIC.md);
 > findings: [`C542_BUS_CAPTURE.md`](C542_BUS_CAPTURE.md).
 
-## MCU 1: STM32F103C8T6 (LQFP-48) — Main Dashboard Controller
+## ~~MCU 1: STM32F103C8T6 (LQFP-48) — Main Dashboard Controller~~ ❌ **NOT PRESENT — section void**
 
-**Source: reference design / community knowledge (NOT firmware-verified — see note above).**
-The typical STM32 dashboard pin mapping is documented below for orientation; treat every row as
-unconfirmed until a genuine STM32 BLE-board dump is obtained.
+**This chip is not on the dashboard PCB** (binary verdict, [`MCU_IDENTIFICATION.md`](MCU_IDENTIFICATION.md)).
+The table below was reference-design guesswork for a hypothesised STM32 and is kept only so older
+cross-references resolve. **Do not wire, flash, or design against it.** The real dashboard pin facts
+live in the nRF51822 section (MCU 2) — notably **P0.04/P0.05 = TM1637 display**.
 
 ### Pin Assignment Table
 
@@ -109,17 +117,21 @@ unconfirmed until a genuine STM32 BLE-board dump is obtained.
 
 ## MCU 2: nRF51822-QFAA (QFN-48) — Bluetooth Low Energy SoC
 
-The nRF51822 runs Nordic SoftDevice (S110 or S130) and acts as a transparent BLE-UART bridge.
-Its firmware is typically NOT modified in custom firmware projects.
+**This is the board's ONLY MCU** — it runs the Nordic SoftDevice + BLE, drives the **TM1637 display**,
+and speaks the Ninebot `5A A5` protocol to the ESC. It is therefore *the* target for custom dashboard
+firmware (there is no STM32 app to write). See [`MCU_IDENTIFICATION.md`](MCU_IDENTIFICATION.md).
 
-### Key Pin Assignments (estimated from Nordic reference design)
+### Key Pin Assignments
 
-| Pin | Function | Description |
-|-----|----------|-------------|
-| P0.08 | UART_TX | TX to STM32 USART1 RX (PA10) |
-| P0.09 | UART_RX | RX from STM32 USART1 TX (PA9) |
-| P0.10 | UART_CTS | Clear-to-send (may not be connected) |
-| P0.11 | UART_RTS | Ready-to-send (may not be connected) |
+| Pin | Function | Description | Evidence |
+|-----|----------|-------------|----------|
+| **P0.04** | **TM1637 (CLK or DIO)** | display, bit-banged 2-wire | **firmware-confirmed** — `PIN_CNF[4]`=3 @`0x18DA6`, toggled by `tm1637_start/stop` |
+| **P0.05** | **TM1637 (the other line)** | display, bit-banged 2-wire | **firmware-confirmed** — `PIN_CNF[5]`=3 (written via `PIN_CNF[4]+4`) |
+| P0.00 / P0.03 / P0.08 / P0.25 | GPIO (button / LEDs / UART) | other configured pins | `PIN_CNF[0]`, `[3]`, `[8]`, `[25]` referenced in the image |
+| P0.08 | UART_TX *(est.)* | Ninebot bus TX | estimated |
+| P0.09 | UART_RX *(est.)* | Ninebot bus RX | estimated |
+| P0.10 | UART_CTS | Clear-to-send (may not be connected) | estimated |
+| P0.11 | UART_RTS | Ready-to-send (may not be connected) | estimated |
 | P0.21 | RESET | Reset input |
 | XC1/XC2 | HFCLK | 16 MHz crystal (required for BLE radio) |
 | XL1/XL2 | LFCLK | 32.768 kHz crystal (RTC for sleep) |

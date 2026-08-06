@@ -10,7 +10,7 @@
  *
  * Verified cores (host-tested, do not edit for the board):
  *   - soft_uart.c : bit framing (8N1, LSB-first)         [sim/test_wire_finder + test_c5_prog]
- *   - nbu_prog.c  : NBU BEGIN/DATA/END + ACK/retransmit   [sim/test_c5_prog, sim/test_iap_chain]
+ *   - nbu_prog.c  : NBU BEGIN/DATA/END + ACK/retransmit   [sim/test_c5_prog]
  * This file is the board glue (bit timing + GPIO + VCP) — STM32CubeIDE / STM32CubeC5.
  * Spots that depend on the STM32C542 are tagged  <<< CONFIRM IN CUBEMX/DATASHEET >>>.
  *

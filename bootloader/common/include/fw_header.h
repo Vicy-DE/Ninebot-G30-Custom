@@ -44,9 +44,12 @@ extern "C" {
 
 /* ── Target board identifiers ──────────────────────────────────────────── */
 
-#define SFW_TARGET_BLE_STM32   0x01   /**< BLE dashboard STM32F103C8T6 */
-#define SFW_TARGET_BMS_STM32   0x02   /**< BMS battery STM32F103C8T6 */
-#define SFW_TARGET_NRF51822    0x03   /**< BLE dashboard nRF51822 */
+/* 0x01 (BLE STM32) and 0x02 (BMS STM32) are RETIRED — the dashboard has no STM32 and the BMS is
+ * out of scope. The ids stay reserved so old signed images are rejected rather than misinterpreted. */
+#define SFW_TARGET_RETIRED_1   0x01   /**< retired: was "BLE dashboard STM32F103C8T6" */
+#define SFW_TARGET_RETIRED_2   0x02   /**< retired: was "BMS battery STM32F103C8T6" */
+#define SFW_TARGET_NRF51822    0x03   /**< dashboard nRF51822 — application image */
+#define SFW_TARGET_NRF51822_BL 0x04   /**< dashboard nRF51822 — BOOTLOADER image (self-update) */
 
 /* ── Crypto type identifiers ───────────────────────────────────────────── */
 
@@ -58,9 +61,6 @@ extern "C" {
 #define SFW_FLAG_PRESERVE_CONFIG   (1U << 1)  /**< Don't erase config pages */
 
 /* ── Maximum firmware sizes ────────────────────────────────────────────── */
-
-/** BLE/BMS STM32F103C8T6: 64KB total, 12KB bootloader, 2KB config → 50KB app */
-#define SFW_MAX_FW_SIZE_STM32   (50U * 1024U)
 
 /** nRF51822: 256KB total, 96KB SoftDevice, 16KB bootloader+settings → 96KB app */
 #define SFW_MAX_FW_SIZE_NRF51   (96U * 1024U)

@@ -68,7 +68,7 @@ int main(int argc, char** argv) {
           "genuine public key is a valid P-256 point (exercises bn_mod_mul)");
 
     printf("  Genuine signed image:\n");
-    check(sfw_validate_header(h, SFW_TARGET_BLE_STM32, SFW_MAX_FW_SIZE_STM32) == SFW_OK,
+    check(sfw_validate_header(h, SFW_TARGET_NRF51822, SFW_MAX_FW_SIZE_NRF51) == SFW_OK,
           "header valid (magic SFW0, version, target, header CRC)");
     check(sfw_check_crc(fw, fwsize, h->fw_crc32) == SFW_OK, "firmware CRC-32 matches");
     check(sfw_verify_signature(h, fw, fwsize, pub.data()) == SFW_OK,
@@ -92,10 +92,10 @@ int main(int argc, char** argv) {
     {   // corrupt magic
         sfw_header_t hm = *h;
         hm.magic ^= 0xFFu;
-        check(sfw_validate_header(&hm, SFW_TARGET_BLE_STM32, SFW_MAX_FW_SIZE_STM32) == SFW_ERR_MAGIC,
+        check(sfw_validate_header(&hm, SFW_TARGET_NRF51822, SFW_MAX_FW_SIZE_NRF51) == SFW_ERR_MAGIC,
               "corrupted magic -> rejected");
     }
-    check(sfw_validate_header(h, SFW_TARGET_NRF51822, SFW_MAX_FW_SIZE_STM32) == SFW_ERR_TARGET,
+    check(sfw_validate_header(h, SFW_TARGET_RETIRED_1, SFW_MAX_FW_SIZE_NRF51) == SFW_ERR_TARGET,
           "wrong target board -> rejected");
 
     printf("---------------------------------------------------------\n");

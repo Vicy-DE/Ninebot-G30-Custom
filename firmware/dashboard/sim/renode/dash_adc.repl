@@ -1,8 +1,0 @@
-// Model ADC1 as plain (silent) memory so the firmware's polling loops don't
-// flood Renode with "unimplemented register" warnings (which make it crawl).
-// - Watchdog scenario: leave ADC1_SR = 0  → EOC never sets → adc_read() fails →
-//   the ADC subsystem is "missing" → the IWDG resets the MCU.
-// - Healthy scenario: the .resc pre-writes ADC1_SR (0x40012400) = 0x2 (EOC set)
-//   → adc_read() returns immediately → ADC stays fresh → the IWDG is fed.
-adc1: Memory.MappedMemory @ sysbus 0x40012400
-    size: 0x400
